@@ -2805,12 +2805,20 @@
             const newStatus = statusMap[status?.toLowerCase()] || status;
             
             if (!newStatus) return;
+            const changeNote = getRequiredChangeNote('batch status update');
+            if (!changeNote) return;
             
             let updated = 0;
             for (const id of selectedPatientIds) {
                 const p = patients.find(x => x.id === id);
                 if (p) {
+                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    AuditLogger.logDataChange(auditUser, id, 'procedureStatus', p.procedureStatus, newStatus);
+                    AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     p.procedureStatus = newStatus;
+                    p.lastChangeNote = changeNote;
+                    p.lastChangeNoteAt = new Date().toISOString();
+                    p.lastChangeNoteBy = auditUser;
                     updated++;
                 }
             }
@@ -2823,10 +2831,20 @@
         // Batch Archive
         window.batchArchiveSelected = async () => {
             if (!confirm(`Archive ${selectedPatientIds.size} selected records?`)) return;
+            const changeNote = getRequiredChangeNote('batch archive');
+            if (!changeNote) return;
             
             for (const id of selectedPatientIds) {
                 const p = patients.find(x => x.id === id);
-                if (p) p.archived = true;
+                if (p) {
+                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    AuditLogger.logDataChange(auditUser, id, 'archived', p.archived, true);
+                    AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
+                    p.archived = true;
+                    p.lastChangeNote = changeNote;
+                    p.lastChangeNoteAt = new Date().toISOString();
+                    p.lastChangeNoteBy = auditUser;
+                }
             }
             
             renderUI();
@@ -2837,7 +2855,14 @@
         // Batch Delete
         window.batchDeleteSelected = async () => {
             if (!confirm(`DELETE ${selectedPatientIds.size} records? This cannot be undone.`)) return;
+            const changeNote = getRequiredChangeNote('batch delete');
+            if (!changeNote) return;
             
+            const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+            selectedPatientIds.forEach(id => {
+                AuditLogger.logDataChange(auditUser, id, 'record', 'present', 'deleted');
+                AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
+            });
             patients = patients.filter(p => !selectedPatientIds.has(p.id));
             renderUI();
             updateBatchOpCount();
@@ -3574,6 +3599,8 @@
             const deleteBtn = document.getElementById('modal-delete-btn');
             const editToggleBtn = document.getElementById('modal-edit-btn');
             const saveBtn = document.getElementById('save-button');
+            const changeNoteInput = document.getElementById('f-change-note');
+            if (changeNoteInput) changeNoteInput.value = '';
 
             const lockBackfilledFields = (locked) => {
                 const lockedIds = [
@@ -4562,6 +4589,15 @@
         }
 
         let isSaving = false;  // Prevent concurrent saves
+
+        function getRequiredChangeNote(actionLabel) {
+            const note = prompt(`Note required for ${actionLabel}. Please enter a brief reason:`);
+            if (!note || !note.trim()) {
+                showToast('⚠️ Note is required to proceed');
+                return null;
+            }
+            return note.trim();
+        }
         
         // Version marker for debugging - includes timestamp to prevent cache reversion
         console.log('%c🔄 App Version: 2026-02-08 07:50 - Save Fix V22 [' + CURRENT_VERSION + '] (enforced)', 'background: #4CAF50; color: white; padding: 4px 8px; font-weight: bold;');
@@ -4659,6 +4695,9 @@
                 archived: document.getElementById('f-archived')?.value === 'true'
             };
 
+            const changeNoteInput = document.getElementById('f-change-note');
+            const changeNote = changeNoteInput ? changeNoteInput.value.trim() : '';
+
             if (!data.visitTime) {
                 data.visitTime = new Date().toISOString();
             }
@@ -4668,6 +4707,10 @@
             
             try {
                 const editId = document.getElementById('edit-id').value;
+                if (editId && !changeNote) {
+                    showToast('⚠️ Change note is required for updates');
+                    return false;
+                }
                 const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
                 const getPreviousPatient = () => {
                     if (!editId) return null;
@@ -4683,7 +4726,8 @@
                         'room', 'date', 'name', 'dob', 'mrn', 'hospital', 'plan', 'supervisingMd',
                         'pending', 'followUp', 'procedureStatus', 'cptPrimary', 'icdPrimary',
                         'chargeCodesSecondary', 'findingsText', 'findingsCodes', 'findingsValues',
-                        'findingsDates', 'visitTime', 'visitKey', 'createdBy', 'archived'
+                        'findingsDates', 'visitTime', 'visitKey', 'createdBy', 'archived',
+                        'lastChangeNote', 'lastChangeNoteAt', 'lastChangeNoteBy'
                     ];
                     fields.forEach((field) => {
                         const prevVal = previous[field];
@@ -4711,7 +4755,15 @@
                         if (index !== -1) {
                             const previous = patients[index];
                             patients[index] = { ...data, id: editId, lastUpdated: new Date().toISOString() };
+                            if (changeNote) {
+                                patients[index].lastChangeNote = changeNote;
+                                patients[index].lastChangeNoteAt = new Date().toISOString();
+                                patients[index].lastChangeNoteBy = auditUser;
+                            }
                             diffAndLog(previous, patients[index], editId);
+                            if (changeNote) {
+                                AuditLogger.logDataChange(auditUser, editId, 'changeNote', null, changeNote);
+                            }
                         }
                     } else {
                         const newId = 'local-' + Date.now();
@@ -4730,6 +4782,11 @@
                         console.log('📦 Data being sent:', { mrn: data.mrn, name: data.name, date: data.date, hospital: data.hospital });
                         if (editId) {
                             data.id = editId;
+                            if (changeNote) {
+                                data.lastChangeNote = changeNote;
+                                data.lastChangeNoteAt = new Date().toISOString();
+                                data.lastChangeNoteBy = auditUser;
+                            }
                         }
                         console.log('📤 About to call window.m365SavePatient...');
                         try {
@@ -4745,6 +4802,9 @@
                             // Success - result should be an ID (string/number)
                             const recordId = editId || result;
                             diffAndLog(getPreviousPatient(), data, recordId);
+                            if (editId && changeNote) {
+                                AuditLogger.logDataChange(auditUser, recordId, 'changeNote', null, changeNote);
+                            }
                             clearDraft(); // Clear draft on successful save
                             showToast("✓ Saved");
                             setTimeout(() => window.closeModal(), 100); // Slight delay to let toast show
@@ -4783,13 +4843,19 @@
         };
 
         window.toggleArchive = async (id, shouldArchive) => {
+            const changeNote = getRequiredChangeNote(shouldArchive ? 'archiving' : 'restoring');
+            if (!changeNote) return;
             if (!isConnected || !useM365) {
                 // Local mode: update in memory
                 const p = patients.find(x => x.id === id);
                 if (p) {
                     const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'archived', p.archived, shouldArchive);
+                    AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     p.archived = shouldArchive;
+                    p.lastChangeNote = changeNote;
+                    p.lastChangeNoteAt = new Date().toISOString();
+                    p.lastChangeNoteBy = auditUser;
                     renderUI();
                     showToast(shouldArchive ? "Archived" : "Restored");
                 }
@@ -4801,7 +4867,11 @@
                     if (patient) {
                         const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
                         AuditLogger.logDataChange(auditUser, id, 'archived', patient.archived, shouldArchive);
+                        AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                         patient.archived = shouldArchive;
+                        patient.lastChangeNote = changeNote;
+                        patient.lastChangeNoteAt = new Date().toISOString();
+                        patient.lastChangeNoteBy = auditUser;
                         await window.m365SavePatient(patient);
                         showToast(shouldArchive ? "Archived" : "Restored");
                     }
@@ -4812,13 +4882,19 @@
         };
 
         window.updateStatusQuick = async (id, newStatus) => {
+            const changeNote = getRequiredChangeNote('status update');
+            if (!changeNote) return;
             if (!isConnected || !useM365) {
                 // Local mode: update in memory
                 const p = patients.find(x => x.id === id);
                 if (p) {
                     const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'procedureStatus', p.procedureStatus, newStatus);
+                    AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     p.procedureStatus = newStatus;
+                    p.lastChangeNote = changeNote;
+                    p.lastChangeNoteAt = new Date().toISOString();
+                    p.lastChangeNoteBy = auditUser;
                     renderUI();
                 }
                 return;
@@ -4829,7 +4905,11 @@
                     if (patient) {
                         const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
                         AuditLogger.logDataChange(auditUser, id, 'procedureStatus', patient.procedureStatus, newStatus);
+                        AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                         patient.procedureStatus = newStatus;
+                        patient.lastChangeNote = changeNote;
+                        patient.lastChangeNoteAt = new Date().toISOString();
+                        patient.lastChangeNoteBy = auditUser;
                         await window.m365SavePatient(patient);
                     }
                 }
@@ -4840,6 +4920,8 @@
 
         window.deletePatient = async (id) => {
             if (!confirm("Delete this patient record? This cannot be undone.")) return;
+            const changeNote = getRequiredChangeNote('deleting');
+            if (!changeNote) return;
             
             if (!isConnected || !useM365) {
                 // Local mode
@@ -4847,6 +4929,7 @@
                 if (index !== -1) {
                     const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'record', 'present', 'deleted');
+                    AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     patients.splice(index, 1);
                     renderUI();
                     showToast("✓ Deleted");
@@ -4857,6 +4940,7 @@
                 if (typeof window.m365DeletePatient === 'function') {
                     const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'record', 'present', 'deleted');
+                    AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     await window.m365DeletePatient(id);
                     showToast("✓ Deleted");
                     // Refetch to update UI
@@ -6484,6 +6568,12 @@
                 <div>
                     <label for="f-created-by" class="text-xs font-bold text-slate-400">📝 Created By</label>
                     <input type="text" id="f-created-by" placeholder="Auto-filled from login" aria-label="Created By, auto-filled from login" class="w-full mt-2 p-3 bg-slate-100 rounded-lg border border-slate-200 text-slate-600" readonly>
+                </div>
+
+                <!-- Change Note (required for edits) -->
+                <div>
+                    <label for="f-change-note" class="text-xs font-bold text-slate-600">🗒️ Change Note</label>
+                    <textarea id="f-change-note" placeholder="Required when updating an existing record" aria-label="Change Note" class="w-full mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200" rows="2"></textarea>
                 </div>
 
                 <div>
