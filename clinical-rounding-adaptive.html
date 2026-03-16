@@ -3441,6 +3441,225 @@
             document.getElementById('patient-summary').innerHTML = html;
         };
 
+        function getAnalyticsDataset() {
+            const activePatients = patients.filter(p => !p.archived);
+            const procedurePatients = activePatients.filter(p => PROC_KEYWORDS.test(p.plan || ''));
+            const statPatients = activePatients.filter(p => p.stat === true || p.stat === 'true');
+            const pendingPatients = activePatients.filter(p => p.pending && String(p.pending).trim().length > 0);
+            const inProgressPatients = procedurePatients.filter(p => (p.procedureStatus || 'To-Do') === 'In-Progress');
+
+            const avgLos = activePatients.length
+                ? Math.round(activePatients.reduce((sum, p) => sum + (globalThis.calculateLOS(p.date) || 0), 0) / activePatients.length)
+                : 0;
+            const patientsWithDob = activePatients.filter(p => p.dob);
+            const avgAge = patientsWithDob.length
+                ? Math.round(patientsWithDob.reduce((sum, p) => sum + (globalThis.calculateAge(p.dob) || 0), 0) / patientsWithDob.length)
+                : 0;
+
+            const hospitalCounts = {};
+            activePatients.forEach((p) => {
+                const key = p.hospital || 'Unassigned';
+                hospitalCounts[key] = (hospitalCounts[key] || 0) + 1;
+            });
+
+            const statusCounts = { 'To-Do': 0, 'In-Progress': 0, 'Completed': 0, 'Post-Op': 0 };
+            procedurePatients.forEach((p) => {
+                const status = p.procedureStatus || 'To-Do';
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+            });
+
+            return {
+                activePatients,
+                procedurePatients,
+                statPatients,
+                pendingPatients,
+                inProgressPatients,
+                avgLos,
+                avgAge,
+                hospitalCounts,
+                statusCounts
+            };
+        }
+
+        function renderAnalyticsCards(cards) {
+            const target = document.getElementById('analytics-content');
+            if (!target) return;
+
+            target.innerHTML = cards.map((card) => `
+                <div class="analytics-card">
+                    <div class="analytics-card-title">${card.title}</div>
+                    <div class="analytics-card-value">${card.value}</div>
+                    <div class="analytics-card-subtitle">${card.subtitle || ''}</div>
+                    ${card.trend ? `<div class="analytics-trend trend-neutral">${card.trend}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderAnalyticsDetails(title, rows) {
+            const detailTarget = document.getElementById('analytics-details');
+            if (!detailTarget) return;
+
+            if (!rows || rows.length === 0) {
+                detailTarget.innerHTML = '<div class="text-sm text-slate-500">No rows to display for this analysis.</div>';
+                return;
+            }
+
+            detailTarget.innerHTML = `
+                <div class="bg-white border border-slate-200 rounded p-3">
+                    <div class="text-sm font-bold text-slate-800 mb-2">${title}</div>
+                    <div class="max-h-64 overflow-y-auto">
+                        ${rows.map((r) => `<div class="text-xs text-slate-700 py-1 border-b border-slate-100">${r}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function runAnalyticsPresetInternal(preset) {
+            const data = getAnalyticsDataset();
+            const hospitalsSorted = Object.entries(data.hospitalCounts).sort((a, b) => b[1] - a[1]);
+            const statusesSorted = Object.entries(data.statusCounts).sort((a, b) => b[1] - a[1]);
+
+            if (preset === 'overview') {
+                renderAnalyticsCards([
+                    { title: 'Active Census', value: data.activePatients.length, subtitle: 'Current non-archived patients' },
+                    { title: 'Procedure Cases', value: data.procedurePatients.length, subtitle: 'Patients with procedural plans' },
+                    { title: 'STAT Priority', value: data.statPatients.length, subtitle: 'Urgent flagged patients' },
+                    { title: 'Pending Tests', value: data.pendingPatients.length, subtitle: 'Patients with pending items' }
+                ]);
+                renderAnalyticsDetails('Top Hospitals by Census', hospitalsSorted.map(([name, count]) => `${name}: ${count}`));
+                return;
+            }
+
+            if (preset === 'procedures') {
+                renderAnalyticsCards([
+                    { title: 'Total Procedures', value: data.procedurePatients.length, subtitle: 'Procedure-eligible patients' },
+                    { title: 'In-Progress', value: data.inProgressPatients.length, subtitle: 'Current in-progress procedures' },
+                    { title: 'Completed', value: data.statusCounts['Completed'] || 0, subtitle: 'Completed procedure status' },
+                    { title: 'Post-Op', value: data.statusCounts['Post-Op'] || 0, subtitle: 'Post-op follow-up status' }
+                ]);
+                renderAnalyticsDetails('Procedure Status Mix', statusesSorted.map(([status, count]) => `${status}: ${count}`));
+                return;
+            }
+
+            if (preset === 'hospitals') {
+                renderAnalyticsCards([
+                    { title: 'Hospitals Covered', value: hospitalsSorted.length, subtitle: 'Distinct hospitals in active census' },
+                    { title: 'Largest Site', value: hospitalsSorted[0]?.[0] || 'N/A', subtitle: `${hospitalsSorted[0]?.[1] || 0} patients` },
+                    { title: 'Avg LOS', value: `${data.avgLos} d`, subtitle: 'Average length of stay' },
+                    { title: 'Avg Age', value: data.avgAge || 'N/A', subtitle: 'Average patient age' }
+                ]);
+                renderAnalyticsDetails('Hospital Census Breakdown', hospitalsSorted.map(([name, count]) => `${name}: ${count}`));
+                return;
+            }
+
+            if (preset === 'risk') {
+                renderAnalyticsCards([
+                    { title: 'STAT Cases', value: data.statPatients.length, subtitle: 'Immediate attention cases' },
+                    { title: 'Pending Tests', value: data.pendingPatients.length, subtitle: 'Needs result follow-up' },
+                    { title: 'In-Progress Procedures', value: data.inProgressPatients.length, subtitle: 'Active procedure workflow' },
+                    { title: 'Avg LOS', value: `${data.avgLos} d`, subtitle: 'Extended stay risk signal' }
+                ]);
+
+                const riskRows = data.activePatients
+                    .filter((p) => (p.stat === true || p.stat === 'true') || (p.pending && String(p.pending).trim().length > 0))
+                    .slice(0, 25)
+                    .map((p) => `${p.name || 'Unknown'} | MRN ${p.mrn || '-'} | ${p.hospital || 'Unassigned'} | ${p.date || ''}`);
+                renderAnalyticsDetails('High-Attention Patients (STAT and/or Pending)', riskRows);
+            }
+        }
+
+        globalThis.loadAnalyticsDashboard = () => {
+            const presetInput = document.getElementById('analytics-preset-select');
+            const preset = presetInput?.value || 'overview';
+            runAnalyticsPresetInternal(preset);
+        };
+
+        globalThis.runAnalyticsPreset = () => {
+            const preset = document.getElementById('analytics-preset-select')?.value || 'overview';
+            runAnalyticsPresetInternal(preset);
+            showToast('✓ Analytics updated');
+        };
+
+        globalThis.validateCustomAnalyticsInput = (rawInput) => {
+            const input = (rawInput || '').trim();
+            if (!input) {
+                return { valid: false, message: 'Query is required.' };
+            }
+            if (input.length > 80) {
+                return { valid: false, message: 'Query is too long (max 80 chars).' };
+            }
+            if (!/^[a-zA-Z0-9\s:_\-./]+$/.test(input)) {
+                return { valid: false, message: 'Invalid characters in query.' };
+            }
+
+            const parts = input.split(':');
+            if (parts.length !== 2) {
+                return { valid: false, message: 'Use format key:value (example: hospital:WGMC).' };
+            }
+
+            const key = parts[0].trim().toLowerCase();
+            const value = parts[1].trim();
+            const allowedKeys = ['hospital', 'status', 'mrn', 'name', 'date', 'stat'];
+            if (!allowedKeys.includes(key)) {
+                return { valid: false, message: `Key must be one of: ${allowedKeys.join(', ')}` };
+            }
+            if (!value) {
+                return { valid: false, message: 'Value is required after colon.' };
+            }
+
+            return { valid: true, key, value };
+        };
+
+        globalThis.runCustomAnalytics = () => {
+            const inputEl = document.getElementById('analytics-custom-input');
+            const messageEl = document.getElementById('analytics-validation-message');
+            const result = globalThis.validateCustomAnalyticsInput(inputEl?.value || '');
+
+            if (!result.valid) {
+                if (messageEl) {
+                    messageEl.className = 'text-xs text-red-600 mt-2';
+                    messageEl.textContent = result.message;
+                }
+                showToast('⚠️ Invalid custom analytics query');
+                return;
+            }
+
+            const valueLower = result.value.toLowerCase();
+            let matches = [];
+
+            if (result.key === 'hospital') {
+                matches = patients.filter((p) => !p.archived && (p.hospital || '').toLowerCase() === valueLower);
+            } else if (result.key === 'status') {
+                matches = patients.filter((p) => !p.archived && (p.procedureStatus || 'To-Do').toLowerCase() === valueLower);
+            } else if (result.key === 'mrn') {
+                matches = patients.filter((p) => !p.archived && String(p.mrn || '').toLowerCase().includes(valueLower));
+            } else if (result.key === 'name') {
+                matches = patients.filter((p) => !p.archived && String(p.name || '').toLowerCase().includes(valueLower));
+            } else if (result.key === 'date') {
+                matches = patients.filter((p) => !p.archived && String(p.date || '') === result.value);
+            } else if (result.key === 'stat') {
+                const wantStat = ['true', 'yes', '1', 'on'].includes(valueLower);
+                matches = patients.filter((p) => !p.archived && (p.stat === true || p.stat === 'true') === wantStat);
+            }
+
+            const activeCount = patients.filter((p) => !p.archived).length;
+            renderAnalyticsCards([
+                { title: 'Custom Filter', value: `${result.key}:${result.value}`, subtitle: 'Validated query' },
+                { title: 'Matching Patients', value: matches.length, subtitle: 'Active records returned' },
+                { title: 'Total Active Census', value: activeCount, subtitle: 'Current active denominator' },
+                { title: 'Match Rate', value: `${activeCount ? Math.round((matches.length / activeCount) * 100) : 0}%`, subtitle: 'Match percentage' }
+            ]);
+
+            const detailRows = matches.slice(0, 30).map((p) => `${p.name || 'Unknown'} | MRN ${p.mrn || '-'} | ${p.hospital || 'Unassigned'} | ${p.date || ''}`);
+            renderAnalyticsDetails('Custom Query Result Rows', detailRows);
+
+            if (messageEl) {
+                messageEl.className = 'text-xs text-green-700 mt-2';
+                messageEl.textContent = 'Query accepted and executed.';
+            }
+            showToast('✓ Custom analytics complete');
+        };
+
         // Render Card View
         globalThis.renderCardView = () => {
             const filtered = globalThis._searchOverride || getFilteredData();
@@ -3576,9 +3795,8 @@
             
             // Render visualizations
             setTimeout(() => {
-                globalThis.renderStatusChart();
-                globalThis.renderQuickStats();
                 globalThis.renderPatientSummary();
+                globalThis.updateTabButtonStyles?.(currentTab);
                 
                 if (currentViewMode === 'card') {
                     globalThis.renderCardView();
@@ -4932,6 +5150,20 @@
             }
         };
 
+        globalThis.updateTabButtonStyles = (activeTab) => {
+            const tabs = ['active', 'procedures', 'calendar', 'oncall', 'archive', 'timeline', 'analytics', 'reports', 'audit', 'procedure-log', 'shift-report'];
+            const activeClass = 'flex-shrink-0 px-2 py-2 rounded bg-blue-600 text-white font-bold text-xs uppercase';
+            const inactiveClass = 'flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase';
+
+            tabs.forEach((b) => {
+                const el = document.getElementById(`tab-${b}-btn`);
+                if (!el) return;
+                const isActive = b === activeTab;
+                el.className = isActive ? activeClass : inactiveClass;
+                el.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+        };
+
         globalThis.setTab = (tab) => {
             currentTab = tab;
             ['table-section', 'calendar-section', 'oncall-section', 'timeline-section', 'analytics-section', 'reports-section', 'audit-section', 'procedure-log-section', 'shift-report-section'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -4978,19 +5210,7 @@
             } else {
                 document.getElementById('table-section')?.classList.remove('hidden');
             }
-
-            ['active', 'procedures', 'calendar', 'oncall', 'archive', 'timeline', 'analytics', 'reports', 'audit', 'procedure-log', 'shift-report'].forEach(b => {
-                const el = document.getElementById(`tab-${b}-btn`);
-                if (el) el.className = (b === tab) ? "flex-shrink-0 px-2 py-2 rounded bg-blue-600 text-white font-bold text-xs uppercase" : "flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase";
-            });
-            
-            // Update ARIA attributes
-            ['active', 'procedures', 'calendar', 'oncall', 'archive', 'timeline', 'analytics', 'reports', 'audit', 'procedure-log', 'shift-report'].forEach(b => {
-                const el = document.getElementById(`tab-${b}-btn`);
-                if (el) {
-                    el.setAttribute('aria-selected', b === tab ? 'true' : 'false');
-                }
-            });
+            globalThis.updateTabButtonStyles(tab);
             
             renderUI();
         };
@@ -5054,6 +5274,7 @@
             if (currentTab === 'calendar') renderCalendar();
             else renderMainTable();
             updateStats();
+            globalThis.updateTabButtonStyles?.(currentTab);
             
             // Initialize Phase 2 sortable headers
             setTimeout(() => globalThis.initSortableHeaders(), 50);
@@ -6208,19 +6429,6 @@
             </div>
 
             <div id="table-section" class="h-full">
-                <!-- Chart Dashboard -->
-                <div id="chart-dashboard" class="chart-container">
-                    <div class="chart-box">
-                        <div class="chart-title">📊 Status Distribution</div>
-                        <svg id="status-pie-chart" class="pie-chart" viewBox="0 0 100 100"></svg>
-                        <div class="pie-legend" id="status-legend"></div>
-                    </div>
-                    <div class="chart-box">
-                        <div class="chart-title">📈 Quick Stats</div>
-                        <div id="quick-stats"></div>
-                    </div>
-                </div>
-
                 <!-- Patient Summary Statistics -->
                 <div id="patient-summary" class="patient-summary"></div>
 
@@ -6371,7 +6579,32 @@
             <div id="analytics-section" class="hidden h-full p-4 overflow-y-auto">
                 <div>
                     <div class="text-2xl font-bold mb-4">📊 Analytics Dashboard</div>
+                    <div class="bg-white border border-slate-200 rounded p-3 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Preset Analysis</label>
+                                <select id="analytics-preset-select" class="w-full p-2 text-xs border border-slate-300 rounded">
+                                    <option value="overview">Census Overview</option>
+                                    <option value="procedures">Procedure Pipeline</option>
+                                    <option value="hospitals">Hospital Workload</option>
+                                    <option value="risk">Risk and Pending Focus</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button onclick="globalThis.runAnalyticsPreset()" class="w-full p-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Run Preset</button>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Custom Query (validated)</label>
+                                <input id="analytics-custom-input" type="text" placeholder="key:value (hospital:WGMC)" class="w-full p-2 text-xs border border-slate-300 rounded" />
+                            </div>
+                        </div>
+                        <div class="mt-2 flex justify-end">
+                            <button onclick="globalThis.runCustomAnalytics()" class="px-3 py-2 bg-slate-700 text-white text-xs font-bold rounded hover:bg-slate-800">Run Custom Query</button>
+                        </div>
+                        <div id="analytics-validation-message" class="text-xs text-slate-500 mt-2">Allowed keys: hospital, status, mrn, name, date, stat.</div>
+                    </div>
                     <div id="analytics-content" class="analytics-dashboard"></div>
+                    <div id="analytics-details" class="mt-4"></div>
                 </div>
             </div>
 
@@ -6444,7 +6677,7 @@
             <!-- Procedure Log Section -->
             <div id="procedure-log-section" class="hidden h-full p-4 overflow-y-auto">
                 <div>
-                    <div class="text-2xl font-bold mb-4">🔪 Surgical Procedures</div>
+                    <div class="text-2xl font-bold mb-4">✂️ Surgical Procedures</div>
                     <div class="procedure-log">
                         <div class="procedure-log-filter mb-4 flex-shrink-0">
                             <button onclick="globalThis.filterProcedures('all')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-blue-600 text-white">All</button>
