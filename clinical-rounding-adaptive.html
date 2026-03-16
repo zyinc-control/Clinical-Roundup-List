@@ -3811,7 +3811,7 @@
         function lockBackfilledFields(locked) {
             const lockedIds = [
                 'f-room', 'f-date', 'f-hospital', 'f-name', 'f-dob', 'f-mrn',
-                'f-md', 'f-plan', 'f-proc-status', 'f-cpt-primary',
+                'f-md', 'f-plan', 'f-proc-status', 'f-priority', 'f-cpt-primary',
                 'f-icd-primary', 'f-charge-codes-secondary', 'f-fu', 'f-pending'
             ];
             lockedIds.forEach((id) => {
@@ -3819,7 +3819,10 @@
                 if (!el) return;
                 const isSelect = el.tagName === 'SELECT';
                 const isDateInput = el.tagName === 'INPUT' && el.type === 'date';
+                const isCheckbox = el.tagName === 'INPUT' && el.type === 'checkbox';
                 if (isSelect || isDateInput) {
+                    el.disabled = locked;
+                } else if (isCheckbox) {
                     el.disabled = locked;
                 } else {
                     el.readOnly = locked;
@@ -3842,6 +3845,7 @@
             const editIdInput = document.getElementById('edit-id');
             const dateInput = document.getElementById('f-date');
             const statusInput = document.getElementById('f-proc-status');
+            const statInput = document.getElementById('f-priority');
             const visitTimeInput = document.getElementById('f-visit-time');
             const visitKeyInput = document.getElementById('f-visit-key');
             const archivedInput = document.getElementById('f-archived');
@@ -3887,6 +3891,7 @@
 
             if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
             if (statusInput) statusInput.value = 'To-Do';
+            if (statInput) statInput.checked = false;
             if (visitTimeInput) visitTimeInput.value = new Date().toISOString();
             if (visitKeyInput) visitKeyInput.value = '';
             if (archivedInput) archivedInput.value = 'false';
@@ -3970,6 +3975,7 @@
                         document.getElementById('f-findings-dates').value = p.findingsDates ? JSON.stringify(p.findingsDates) : "";
                     }
                     if (statusInput) statusInput.value = p.procedureStatus || 'To-Do';
+                    if (statInput) statInput.checked = p.stat === true || p.stat === 'true';
                     
                     // Show who created the record when editing
                     const createdByField = document.getElementById('f-created-by');
@@ -4884,6 +4890,7 @@
                 pending: document.getElementById('f-pending').value, 
                 followUp: document.getElementById('f-fu').value,
                 procedureStatus: document.getElementById('f-proc-status').value,
+                stat: document.getElementById('f-priority')?.checked || false,
                 cptPrimary: document.getElementById('f-cpt-primary').value,
                 icdPrimary: document.getElementById('f-icd-primary').value,
                 chargeCodesSecondary: document.getElementById('f-charge-codes-secondary').value,
@@ -6793,6 +6800,11 @@
                         <option>FOLLOW UP (POST OP)</option>
                         <option>TO BE DISCHARGED/SIGNED OFF</option>
                     </select>
+                </div>
+
+                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <label for="f-priority" class="text-sm font-bold text-slate-700">STAT Priority 🔴</label>
+                    <input type="checkbox" id="f-priority" aria-label="STAT Priority" class="w-5 h-5">
                 </div>
 
                 <input type="text" id="f-name" placeholder="Patient Name" aria-label="Patient Full Name" class="w-full p-3 bg-slate-50 rounded-lg border border-slate-200">

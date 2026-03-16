@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinical Rounding Platform - Graphic User Guide</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #64748b;
+      --brand: #0f6fff;
+      --line: #dbe2ea;
+      --accent: #0ea5e9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 40%);
+      line-height: 1.45;
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1, h2, h3 { margin: 0 0 10px 0; }
+
+    h1 {
+      font-size: 30px;
+      letter-spacing: 0.2px;
+    }
+
+    h2 {
+      font-size: 22px;
+      margin-top: 26px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      margin-bottom: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 16px;
+    }
+
+    .legend {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .badge {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--brand);
+      color: #fff;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      margin-right: 8px;
+      flex: 0 0 auto;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f6ff;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .section-note {
+      background: #ecfeff;
+      border: 1px solid #bae6fd;
+      border-radius: 10px;
+      padding: 10px;
+      color: #0c4a6e;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .step-list {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .step-list li {
+      margin-bottom: 6px;
+    }
+
+    @media (max-width: 980px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Clinical Rounding Platform - Graphic User Guide</h1>
+    <p class="subtitle">Visual map of button locations and what each action does in the current application interface.</p>
+
+    <div class="card grid">
+      <div>
+        <h2>Screen Map (Main Window)</h2>
+        <svg viewBox="0 0 860 520" width="100%" aria-labelledby="main-map-title">
+          <title id="main-map-title">Main app layout map</title>
+          <rect x="8" y="8" width="844" height="504" rx="12" fill="#ffffff" stroke="#cdd7e2" stroke-width="2"/>
+
+          <rect x="24" y="24" width="812" height="52" rx="8" fill="#eef4ff" stroke="#bfd2f5"/>
+          <text x="34" y="52" font-size="13" fill="#334155" font-weight="700">Header: Login | Import Files | Add | Filters | Search | Settings | Help</text>
+
+          <rect x="24" y="88" width="812" height="32" rx="6" fill="#f8fafc" stroke="#d9e1ea"/>
+          <text x="34" y="109" font-size="12" fill="#475569">Status and connection strip</text>
+
+          <rect x="24" y="130" width="812" height="36" rx="6" fill="#eff6ff" stroke="#c9dcff"/>
+          <text x="34" y="153" font-size="12" fill="#1e40af">Tabs: Census, Surgical, Calendar, Staffing, Archive, Timeline, Analytics, Reports, Audit, Procedures, Shifts</text>
+
+          <rect x="24" y="176" width="812" height="40" rx="6" fill="#f8fafc" stroke="#d9e1ea"/>
+          <text x="34" y="200" font-size="12" fill="#334155">Search bar + Quick filters + Batch actions</text>
+
+          <rect x="24" y="226" width="812" height="268" rx="8" fill="#ffffff" stroke="#d9e1ea"/>
+          <text x="34" y="248" font-size="12" fill="#334155">Content area (changes by selected tab)</text>
+          <rect x="34" y="260" width="790" height="42" rx="6" fill="#f8fafc" stroke="#d9e1ea"/>
+          <text x="44" y="286" font-size="11" fill="#334155">Census example: patient summary + view toggles + filter bar</text>
+          <rect x="34" y="310" width="790" height="174" rx="6" fill="#fdfefe" stroke="#e5e7eb"/>
+          <text x="44" y="334" font-size="11" fill="#475569">Data table / cards / grouped hospital view</text>
+
+          <circle cx="778" cy="50" r="13" fill="#0f6fff"/><text x="773" y="54" font-size="12" fill="#fff" font-weight="700">1</text>
+          <circle cx="790" cy="148" r="13" fill="#0f6fff"/><text x="785" y="152" font-size="12" fill="#fff" font-weight="700">2</text>
+          <circle cx="794" cy="196" r="13" fill="#0f6fff"/><text x="789" y="200" font-size="12" fill="#fff" font-weight="700">3</text>
+          <circle cx="796" cy="286" r="13" fill="#0f6fff"/><text x="791" y="290" font-size="12" fill="#fff" font-weight="700">4</text>
+          <circle cx="796" cy="334" r="13" fill="#0f6fff"/><text x="791" y="338" font-size="12" fill="#fff" font-weight="700">5</text>
+        </svg>
+      </div>
+
+      <div>
+        <h2>Map Legend</h2>
+        <ul class="legend">
+          <li class="legend-row"><span class="badge">1</span><div><strong>Header Actions</strong><br>Authentication, file import, add patient, settings and shortcuts access.</div></li>
+          <li class="legend-row"><span class="badge">2</span><div><strong>Tab Navigation</strong><br>Primary mode switch for all sections. Blue highlight indicates active tab.</div></li>
+          <li class="legend-row"><span class="badge">3</span><div><strong>Search + Quick Filters + Batch Bar</strong><br>Instantly narrow visible records and run multi-record actions.</div></li>
+          <li class="legend-row"><span class="badge">4</span><div><strong>Section Controls</strong><br>Contextual controls for selected tab (calendar, staffing form, analytics presets, report options).</div></li>
+          <li class="legend-row"><span class="badge">5</span><div><strong>Result/Data Area</strong><br>Tables, cards, logs, timelines, and generated outputs appear here.</div></li>
+        </ul>
+        <p class="hint">Tip: In Census, use Apply/Clear near filters, then select records for Handoff/Print/Batch operations.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Header Buttons (Top Right)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Button</th>
+            <th>Location</th>
+            <th>Function</th>
+            <th>Typical Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Login</td><td>Top header</td><td>Connect to M365 identity</td><td>Start authenticated cloud workflow</td></tr>
+          <tr><td>Import Files</td><td>Top header</td><td>Open multi-file import (CSV/XLS/XLSX) with preview</td><td>Bulk load census and schedule updates</td></tr>
+          <tr><td>Add</td><td>Top header</td><td>Open patient record entry modal</td><td>Create a new visit record</td></tr>
+          <tr><td>Filters</td><td>Top header</td><td>Open advanced filter panel</td><td>Complex filtering by status, hospital, LOS, date</td></tr>
+          <tr><td>Search</td><td>Top header</td><td>Toggle advanced search panel visibility</td><td>Focus on text-driven record search</td></tr>
+          <tr><td>Settings</td><td>Top header</td><td>Theme, text size, visible columns, local data tools</td><td>Personalize view and local data management</td></tr>
+          <tr><td>?</td><td>Top header</td><td>Keyboard shortcuts help</td><td>Quick key reference</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Tab-by-Tab Action Guide</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Tab</th>
+            <th>Main Controls</th>
+            <th>What It Does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Census</td><td>View mode toggle, filters, row actions, batch actions</td><td>Primary patient management view for daily rounds</td></tr>
+          <tr><td>Surgical</td><td>Status dropdowns in rows</td><td>Focuses on procedure-related records</td></tr>
+          <tr><td>Calendar</td><td>Prev/Next month buttons</td><td>Date-based overview of patient events</td></tr>
+          <tr><td>Staffing</td><td>Date, provider, hospital checklist, Save Shift</td><td>Create and manage on-call coverage assignments</td></tr>
+          <tr><td>Timeline</td><td>MRN filter, from-date filter, Load Timeline</td><td>Chronological history for a patient or period</td></tr>
+          <tr><td>Analytics</td><td>Preset selector, Run Preset, validated custom query</td><td>Pre-built analytics and filtered custom metrics</td></tr>
+          <tr><td>Reports</td><td>Report type/date/hospital + Generate PDF</td><td>Generate printable/exportable summaries</td></tr>
+          <tr><td>Audit</td><td>Action/date filters + Load Logs</td><td>Review audit trail events</td></tr>
+          <tr><td>Procedures</td><td>Type filters: All/Cysto/Stent/TURBT/Robotic/Laser</td><td>Procedure-specific operational log</td></tr>
+          <tr><td>Shifts</td><td>Shift date/time + Generate Report</td><td>Create handoff report for shift transitions</td></tr>
+        </tbody>
+      </table>
+      <div class="section-note">Analytics custom query format: key:value. Allowed keys: hospital, status, mrn, name, date, stat.</div>
+    </div>
+
+    <div class="card grid">
+      <div>
+        <h2>Census Row Actions</h2>
+        <table>
+          <thead>
+            <tr><th>Control</th><th>Effect</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Edit</td><td>Open selected patient record in modal for updates</td></tr>
+            <tr><td>Print</td><td>Print current patient record</td></tr>
+            <tr><td>Status dropdown</td><td>Update procedure status quickly (To-Do/In-Progress/Completed/Post-Op)</td></tr>
+            <tr><td>Row checkbox</td><td>Select patient for batch operations and handoff</td></tr>
+            <tr><td>Header checkbox</td><td>Select or clear all visible rows</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h2>Batch and Footer Actions</h2>
+        <table>
+          <thead>
+            <tr><th>Control</th><th>Use</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Change Status</td><td>Bulk status updates for selected patients</td></tr>
+            <tr><td>Archive</td><td>Move selected active records to archive</td></tr>
+            <tr><td>Delete</td><td>Remove selected records (requires confirmation)</td></tr>
+            <tr><td>Cancel</td><td>Exit batch mode and clear active selection flow</td></tr>
+            <tr><td>Handoff</td><td>Generate team handoff text for selected records</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quick Workflows</h2>
+      <ol class="step-list">
+        <li>Add a patient: click Add -> complete modal fields -> Save.</li>
+        <li>Filter current census: set Date/Hospital/Room/Patient -> click Apply -> review rows.</li>
+        <li>Run analytics: open Analytics tab -> choose preset -> Run Preset (or enter valid custom query).</li>
+        <li>Create PDF report: open Reports tab -> choose type/date/hospital -> Generate PDF.</li>
+        <li>Prepare handoff: select records in Census -> click Handoff in footer -> Copy from modal.</li>
+      </ol>
+      <p class="small">Guide generated for the current interface layout in clinical-rounding-adaptive.html (March 2026 state).</p>
+    </div>
+  </div>
+</body>
+</html>
