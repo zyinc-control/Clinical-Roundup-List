@@ -2971,6 +2971,12 @@
             loadSettings();
             initKeyboardShortcuts();
             updateOfflineStatus();
+
+            // Restore last selected Census view mode after initial render.
+            const savedViewMode = localStorage.getItem('app-view-mode');
+            if (savedViewMode && typeof globalThis.setViewMode === 'function') {
+                setTimeout(() => globalThis.setViewMode(savedViewMode, { silent: true }), 0);
+            }
             
             // Initialize Phase 2 (Sorting & Filtering)
             setTimeout(() => globalThis.initSortableHeaders(), 500);
@@ -3255,36 +3261,46 @@
         // ============================================================================= 
 
         // Global state for view mode
-        let currentViewMode = 'table';
+        let currentViewMode = localStorage.getItem('app-view-mode') || 'table';
 
         // Set View Mode
-        globalThis.setViewMode = (mode) => {
+        globalThis.setViewMode = (mode, options = {}) => {
+            const allowedModes = new Set(['table', 'card', 'grouped']);
+            if (!allowedModes.has(mode)) mode = 'table';
             currentViewMode = mode;
+            localStorage.setItem('app-view-mode', mode);
             
             const tableView = document.querySelector('.view-toggle .view-btn:nth-child(1)');
             const cardView = document.querySelector('.view-toggle .view-btn:nth-child(2)');
             const groupedView = document.querySelector('.view-toggle .view-btn:nth-child(3)');
+            const tableContainer = document.querySelector('#table-section .overflow-x-auto');
+            const cardContainer = document.getElementById('card-view-container');
+            const groupedContainer = document.getElementById('grouped-view-container');
             
             [tableView, cardView, groupedView].forEach(btn => btn?.classList.remove('active'));
             
             if (mode === 'table') {
                 tableView?.classList.add('active');
-                document.getElementById('table-section').style.display = '';
-                document.getElementById('card-view-container').classList.remove('active');
-                document.getElementById('grouped-view-container').innerHTML = '';
+                if (tableContainer) tableContainer.style.display = '';
+                if (cardContainer) cardContainer.classList.remove('active');
+                if (groupedContainer) groupedContainer.style.display = 'none';
             } else if (mode === 'card') {
                 cardView?.classList.add('active');
-                document.getElementById('table-section').style.display = 'none';
+                if (tableContainer) tableContainer.style.display = 'none';
+                if (groupedContainer) groupedContainer.style.display = 'none';
                 globalThis.renderCardView();
             } else if (mode === 'grouped') {
                 groupedView?.classList.add('active');
-                document.getElementById('table-section').style.display = 'none';
-                document.getElementById('card-view-container').classList.remove('active');
+                if (tableContainer) tableContainer.style.display = 'none';
+                if (cardContainer) cardContainer.classList.remove('active');
+                if (groupedContainer) groupedContainer.style.display = '';
                 globalThis.renderGroupedView();
             }
             
-            const viewLabels = { table: 'Table View', card: 'Card View' };
-            showToast(`📊 ${viewLabels[mode] || 'Hospital Grouping'}`);
+            if (!options.silent) {
+                const viewLabels = { table: 'Table View', card: 'Card View', grouped: 'By Hospital' };
+                showToast(`📊 ${viewLabels[mode]}`);
+            }
         };
 
         // Calculate Patient Age from DOB
@@ -3429,6 +3445,9 @@
         globalThis.renderCardView = () => {
             const filtered = globalThis._searchOverride || getFilteredData();
             const container = document.getElementById('card-view-container');
+            const groupedContainer = document.getElementById('grouped-view-container');
+
+            if (groupedContainer) groupedContainer.style.display = 'none';
             
             if (filtered.length === 0) {
                 container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #999;">No patients</div>';
@@ -3503,6 +3522,10 @@
         globalThis.renderGroupedView = () => {
             const filtered = globalThis._searchOverride || getFilteredData();
             const container = document.getElementById('grouped-view-container');
+            const cardContainer = document.getElementById('card-view-container');
+
+            if (cardContainer) cardContainer.classList.remove('active');
+            if (container) container.style.display = '';
             
             if (filtered.length === 0) {
                 container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #999;">No patients</div>';
