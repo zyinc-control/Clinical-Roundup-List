@@ -1,0 +1,30 @@
+# Netlify Configuration for Clinical Rounding Platform
+
+# Build settings (if you have a build process)
+[build]
+  # No build process needed - single page app
+  publish = "."
+  command = "echo 'No build needed'"
+
+# Redirect all requests to index.html for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cache settings
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "public, max-age=86400"

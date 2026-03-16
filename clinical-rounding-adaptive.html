@@ -1,9 +1,33 @@
 
-    </script>
-</body>
-</html>
-            background-color: #f3f4f6;
-            cursor: not-allowed;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>Clinical Rounding List - Adaptive Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://alcdn.msauth.net/browser/2.32.2/js/msal-browser.min.js"></script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -webkit-touch-callout: none;
+        }
+        input, textarea, select, button { -webkit-user-select: text; user-select: text; }
+        input[type="checkbox"], input[type="date"], input[type="text"] { font-size: 16px !important; }
+        textarea { font-size: 16px !important; resize: vertical; }
+        details summary { list-style: none; cursor: pointer; }
+        details summary::-webkit-details-marker { display: none; }
+
+        @supports (-webkit-touch-callout: none) {
+            body { padding-bottom: env(safe-area-inset-bottom); }
         }
 
         .findings-custom-panel {
@@ -1786,8 +1810,8 @@
             const isAndroid = /android/.test(ua);
             const isTablet = /ipad|android(?!.*mobile)/.test(ua);
             const isPhone = !isTablet;
-            const width = window.innerWidth;
-            const height = window.innerHeight;
+            const width = globalThis.innerWidth;
+            const height = globalThis.innerHeight;
             const isLandscape = width > height;
             
             return {
@@ -1798,13 +1822,16 @@
                 isLandscape,
                 width,
                 height,
-                dpr: window.devicePixelRatio,
+                dpr: globalThis.devicePixelRatio,
                 ua,
-                type: isTablet ? (isIOS ? 'iPad' : 'Android Tablet') : (isIOS ? 'iPhone' : 'Android Phone')
+                type: (() => {
+                    if (isTablet) return isIOS ? 'iPad' : 'Android Tablet';
+                    return isIOS ? 'iPhone' : 'Android Phone';
+                })()
             };
         })();
 
-        const FINDINGS_CUSTOM_CODES = ['cbc-85025', 'bmp-80048'];
+        const FINDINGS_CUSTOM_CODES = new Set(['cbc-85025', 'bmp-80048']);
 
         function parseCustomFindingValue(code, rawValue) {
             if (!rawValue) return {};
@@ -1815,7 +1842,7 @@
                 const parsed = JSON.parse(rawValue);
                 if (parsed && typeof parsed === 'object') return parsed;
             } catch (err) {
-                // Fall through to legacy parsing.
+                console.debug('JSON parse failed for finding value, falling back to legacy parsing:', err.message);
             }
 
             if (code === 'bmp-80048') {
@@ -1879,7 +1906,7 @@
             };
 
             const config = {
-                mode: typeof window.__compliance_mode !== 'undefined' ? window.__compliance_mode : 'relaxed',
+                mode: globalThis.__compliance_mode ?? 'relaxed',
                 features: {}
             };
 
@@ -2057,9 +2084,9 @@
             const appendImmutable = (logEntry) => {
                 immutableLogs.push(logEntry);
                 logs.push(logEntry);
-                if (typeof window.m365LogAuditEvent === 'function') {
+                if (typeof globalThis.m365LogAuditEvent === 'function') {
                     try {
-                        window.m365LogAuditEvent(logEntry);
+                        globalThis.m365LogAuditEvent(logEntry);
                     } catch (e) {
                         console.warn('Audit log sync failed:', e.message || e);
                     }
@@ -2176,9 +2203,6 @@
 
         // ========== Phase 2: Data Protection & Transport Security ==========
         const EncryptionService = (() => {
-            // Simple client-side encryption using base64 + XOR (for demo; production uses AES-256 with proper KMS)
-            const encryptionKey = typeof window.__encryption_key !== 'undefined' ? window.__encryption_key : 'demo-key-change-me';
-            
             const simpleEncrypt = (plaintext) => {
                 if (!ComplianceEngine.featureGate.isEnabled('field_encryption')) return plaintext;
                 // Base64 encode for transport safety
@@ -2286,18 +2310,18 @@
         const TransportSecurity = (() => {
             return {
                 verifyTLSConnection: () => {
-                    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+                    const isSecure = globalThis.location.protocol === 'https:' || globalThis.location.hostname === 'localhost';
                     if (!isSecure) {
                         console.warn('[Transport] Warning: Connection is not HTTPS');
                         if (ComplianceEngine.featureGate.isEnabled('field_encryption')) {
                             throw new Error('HTTPS required when encryption is enabled');
                         }
                     }
-                    return { secure: isSecure, protocol: window.location.protocol };
+                    return { secure: isSecure, protocol: globalThis.location.protocol };
                 },
 
                 validateRequest: (method, url, headers = {}) => {
-                    const isSecure = window.location.protocol === 'https:' || url.startsWith('https://');
+                    const isSecure = globalThis.location.protocol === 'https:' || url.startsWith('https://');
                     const hasValidHeaders = headers['content-type'] && headers['x-requested-with'];
                     
                     if (!isSecure) {
@@ -2314,7 +2338,7 @@
                 getTLSVersion: () => {
                     // In browser environment, we get TLS from server response headers
                     // For now, we verify HTTPS is used
-                    return window.location.protocol === 'https:' ? 'TLS 1.3+ (via HTTPS)' : 'Unencrypted';
+                    return globalThis.location.protocol === 'https:' ? 'TLS 1.3+ (via HTTPS)' : 'Unencrypted';
                 }
             };
         })();
@@ -2412,16 +2436,16 @@
                 if (!text) return text;
                 // Redact common PII patterns
                 return String(text)
-                    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, 'XXX-XX-XXXX') // SSN-like
-                    .replace(/\d{1,5}\s+[A-Z][a-z]+\s+(?:Ave|St|Blvd|Ln|Dr|Ct|Way|Court|Lane)/g, '[ADDRESS]') // Addresses
-                    .replace(/\b\d{10}\b/g, '[PHONE]') // Phone numbers
+                    .replaceAll(/\b\d{3}-\d{2}-\d{4}\b/g, 'XXX-XX-XXXX') // SSN-like
+                    .replaceAll(/\d{1,5}\s+[A-Z][a-z]+\s+(?:Ave|St|Blvd|Ln|Dr|Ct|Way|Court|Lane)/g, '[ADDRESS]') // Addresses
+                    .replaceAll(/\b\d{10}\b/g, '[PHONE]') // Phone numbers
                     .substring(0, 100); // Truncate for safety
             };
 
             const sanitizeFilename = (filename) => {
                 return filename
-                    .replace(/[^a-zA-Z0-9._-]/g, '_')
-                    .replace(/_+/g, '_')
+                    .replaceAll(/[^a-zA-Z0-9._-]/g, '_')
+                    .replaceAll(/_+/g, '_')
                     .substring(0, 255);
             };
 
@@ -2563,7 +2587,7 @@
         }
 
         // Settings Panel Toggle
-        window.toggleSettings = () => {
+        globalThis.toggleSettings = () => {
             const panel = document.getElementById('settings-panel');
             panel.classList.toggle('active');
             if (!panel.classList.contains('active')) {
@@ -2572,7 +2596,7 @@
         };
 
         // Theme Management
-        window.setTheme = (theme) => {
+        globalThis.setTheme = (theme) => {
             localStorage.setItem('app-theme', theme);
             const isDark = theme === 'dark';
             document.body.classList.toggle('dark-mode', isDark);
@@ -2581,25 +2605,25 @@
         };
 
         // Text Size Management
-        window.setTextSize = (size) => {
+        globalThis.setTextSize = (size) => {
             localStorage.setItem('app-text-size', size);
             document.body.classList.remove('text-lg', 'text-xl', 'text-xxl');
             if (size === '2') document.body.classList.add('text-lg');
             else if (size === '3') document.body.classList.add('text-xl');
             else if (size === '4') document.body.classList.add('text-xxl');
-            const sizeLabel = ['Normal', 'Large', 'Larger', 'Largest'][parseInt(size)-1];
+            const sizeLabel = ['Normal', 'Large', 'Larger', 'Largest'][Number.parseInt(size, 10)-1];
             showToast(`📝 Text: ${sizeLabel}`);
         };
 
         // High Contrast Toggle
-        window.toggleHighContrast = (checked) => {
+        globalThis.toggleHighContrast = (checked) => {
             localStorage.setItem('app-high-contrast', checked);
             document.body.classList.toggle('high-contrast', checked);
             showToast(checked ? '⚫ High Contrast ON' : '⚪ High Contrast OFF');
         };
 
         // Column Visibility Management
-        window.updateColumnVisibility = () => {
+        globalThis.updateColumnVisibility = () => {
             const visibleCols = Array.from(document.querySelectorAll('.column-vis:checked')).map(cb => cb.value);
             localStorage.setItem('app-visible-columns', JSON.stringify(visibleCols));
             renderUI();
@@ -2607,7 +2631,7 @@
         };
 
         // Advanced Search Toggle
-        window.toggleAdvancedSearch = () => {
+        globalThis.toggleAdvancedSearch = () => {
             const search = document.getElementById('advanced-search');
             search.classList.toggle('active');
             if (search.classList.contains('active')) {
@@ -2616,7 +2640,7 @@
         };
 
         // Perform Search across all patient fields
-        window.performSearch = (query) => {
+        globalThis.performSearch = (query) => {
             if (!query || query.trim() === '') {
                 clearSearch();
                 return;
@@ -2632,12 +2656,12 @@
             });
             
             // Temporarily override getFilteredData
-            window._searchOverride = filtered;
+            globalThis._searchOverride = filtered;
             renderUI();
         };
 
         // Quick Filter Buttons
-        window.setQuickFilter = (type) => {
+        globalThis.setQuickFilter = (type) => {
             let filtered = [];
             const active = patients.filter(p => !p.archived);
             
@@ -2660,14 +2684,14 @@
                     break;
             }
             
-            window._searchOverride = filtered;
+            globalThis._searchOverride = filtered;
             renderUI();
         };
 
         // Clear Search
-        window.clearSearch = () => {
+        globalThis.clearSearch = () => {
             document.getElementById('search-box').value = '';
-            window._searchOverride = null;
+            globalThis._searchOverride = null;
             renderUI();
             showToast('🔍 Search cleared');
         };
@@ -2678,90 +2702,48 @@
 
         // Initialize keyboard shortcuts
         function initKeyboardShortcuts() {
+            const getShortcutKey = (e) => {
+                const parts = [];
+                if (e.ctrlKey || e.metaKey) parts.push('mod');
+                if (e.shiftKey) parts.push('shift');
+                if (e.altKey) parts.push('alt');
+                parts.push(e.key.toLowerCase());
+                return parts.join('+');
+            };
+
+            const shortcutMap = {
+                'mod+n': () => { globalThis.openModal(); },
+                'mod+e': () => { if (typeof globalThis.exportSelectedPatients === 'function') globalThis.exportSelectedPatients(); },
+                'mod+p': () => { if (typeof globalThis.printSelectedPatientRecords === 'function') globalThis.printSelectedPatientRecords(); },
+                'mod+/': () => { globalThis.toggleAdvancedSearch(); },
+                'mod+,': () => { globalThis.toggleSettings(); },
+                'mod+shift+?': () => { globalThis.showShortcutsHelp(); },
+                'alt+a': () => { globalThis.setTab('active'); showToast('📊 Census Tab'); },
+                'alt+s': () => { globalThis.setTab('procedures'); showToast('🏥 Surgical Tab'); },
+                'alt+c': () => { globalThis.setTab('calendar'); showToast('📅 Calendar Tab'); },
+                'alt+f': () => { globalThis.setTab('oncall'); showToast('👨‍⚕️ Staffing Tab'); },
+                'alt+x': () => { globalThis.setTab('archive'); showToast('📋 Archive Tab'); },
+                'escape': () => { globalThis.toggleSettings(); globalThis.closeShortcutsHelp(); globalThis.toggleAdvancedSearch(); closeContextMenu(); }
+            };
+
             document.addEventListener('keydown', (e) => {
-                // Ctrl+N: New patient
-                if (e.ctrlKey && e.key === 'n') {
+                const key = getShortcutKey(e);
+                const handler = shortcutMap[key];
+                if (handler) {
                     e.preventDefault();
-                    window.openModal();
-                }
-                // Ctrl+E: Export
-                else if (e.ctrlKey && e.key === 'e') {
-                    e.preventDefault();
-                    // Find and click export button or call export
-                    if (typeof window.exportSelectedPatients === 'function') {
-                        window.exportSelectedPatients();
-                    }
-                }
-                // Ctrl+P: Print
-                else if (e.ctrlKey && e.key === 'p') {
-                    e.preventDefault();
-                    if (typeof window.printSelectedPatientRecords === 'function') {
-                        window.printSelectedPatientRecords();
-                    }
-                }
-                // Ctrl+/ : Advanced search
-                else if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-                    e.preventDefault();
-                    window.toggleAdvancedSearch();
-                }
-                // Ctrl+, : Settings
-                else if ((e.ctrlKey || e.metaKey) && e.key === ',') {
-                    e.preventDefault();
-                    window.toggleSettings();
-                }
-                // Ctrl+? : Help
-                else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '?') {
-                    e.preventDefault();
-                    window.showShortcutsHelp();
-                }
-                // Alt+A: Census tab
-                else if (e.altKey && e.key === 'a') {
-                    e.preventDefault();
-                    window.setTab('active');
-                    showToast('📊 Census Tab');
-                }
-                // Alt+S: Surgical tab
-                else if (e.altKey && e.key === 's') {
-                    e.preventDefault();
-                    window.setTab('procedures');
-                    showToast('🏥 Surgical Tab');
-                }
-                // Alt+C: Calendar tab
-                else if (e.altKey && e.key === 'c') {
-                    e.preventDefault();
-                    window.setTab('calendar');
-                    showToast('📅 Calendar Tab');
-                }
-                // Alt+F: Staffing tab
-                else if (e.altKey && e.key === 'f') {
-                    e.preventDefault();
-                    window.setTab('oncall');
-                    showToast('👨‍⚕️ Staffing Tab');
-                }
-                // Alt+X: Archive tab
-                else if (e.altKey && e.key === 'x') {
-                    e.preventDefault();
-                    window.setTab('archive');
-                    showToast('📋 Archive Tab');
-                }
-                // Escape: Close dialogs
-                else if (e.key === 'Escape') {
-                    window.toggleSettings();
-                    window.closeShortcutsHelp();
-                    window.toggleAdvancedSearch();
-                    closeContextMenu();
+                    handler();
                 }
             });
         }
 
         // Show Shortcuts Help
-        window.showShortcutsHelp = () => {
+        globalThis.showShortcutsHelp = () => {
             document.getElementById('shortcuts-modal').classList.add('active');
             document.body.classList.add('no-scroll');
         };
 
         // Close Shortcuts Help
-        window.closeShortcutsHelp = () => {
+        globalThis.closeShortcutsHelp = () => {
             document.getElementById('shortcuts-modal').classList.remove('active');
             document.body.classList.remove('no-scroll');
         };
@@ -2771,7 +2753,7 @@
         // ============================================================================= 
 
         // Toggle All Selection
-        window.toggleAllSelection = (event) => {
+        globalThis.toggleAllSelection = (event) => {
             const checked = event.target.checked;
             document.querySelectorAll('input[data-patient-checkbox]').forEach(cb => {
                 cb.checked = checked;
@@ -2799,7 +2781,7 @@
         }
 
         // Batch Change Status
-        window.batchChangeStatus = async () => {
+        globalThis.batchChangeStatus = async () => {
             const status = prompt('Enter new status:\n1. To-Do\n2. In-Progress\n3. Completed\n4. Post-Op');
             const statusMap = {'1': 'To-Do', '2': 'In-Progress', '3': 'Completed', '4': 'Post-Op', 'to-do': 'To-Do', 'in-progress': 'In-Progress'};
             const newStatus = statusMap[status?.toLowerCase()] || status;
@@ -2812,7 +2794,7 @@
             for (const id of selectedPatientIds) {
                 const p = patients.find(x => x.id === id);
                 if (p) {
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'procedureStatus', p.procedureStatus, newStatus);
                     AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     p.procedureStatus = newStatus;
@@ -2829,7 +2811,7 @@
         };
 
         // Batch Archive
-        window.batchArchiveSelected = async () => {
+        globalThis.batchArchiveSelected = async () => {
             if (!confirm(`Archive ${selectedPatientIds.size} selected records?`)) return;
             const changeNote = getRequiredChangeNote('batch archive');
             if (!changeNote) return;
@@ -2837,7 +2819,7 @@
             for (const id of selectedPatientIds) {
                 const p = patients.find(x => x.id === id);
                 if (p) {
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'archived', p.archived, true);
                     AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     p.archived = true;
@@ -2853,12 +2835,12 @@
         };
 
         // Batch Delete
-        window.batchDeleteSelected = async () => {
+        globalThis.batchDeleteSelected = async () => {
             if (!confirm(`DELETE ${selectedPatientIds.size} records? This cannot be undone.`)) return;
             const changeNote = getRequiredChangeNote('batch delete');
             if (!changeNote) return;
             
-            const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+            const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
             selectedPatientIds.forEach(id => {
                 AuditLogger.logDataChange(auditUser, id, 'record', 'present', 'deleted');
                 AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
@@ -2870,7 +2852,7 @@
         };
 
         // Cancel Batch Operation
-        window.cancelBatchOp = () => {
+        globalThis.cancelBatchOp = () => {
             document.querySelectorAll('input[data-patient-checkbox]').forEach(cb => cb.checked = false);
             updateBatchOpCount();
         };
@@ -2880,7 +2862,7 @@
         // ============================================================================= 
 
         // Export Local Data
-        window.exportLocalData = () => {
+        globalThis.exportLocalData = () => {
             const data = {
                 patients,
                 onCallSchedule,
@@ -2899,35 +2881,32 @@
         };
 
         // Import Local Data
-        window.importLocalData = () => {
+        globalThis.importLocalData = () => {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
-            input.onchange = (e) => {
+            input.onchange = async (e) => {
                 const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    try {
-                        const data = JSON.parse(evt.target.result);
-                        if (confirm(`Restore ${data.patients?.length || 0} patients and settings?`)) {
-                            if (data.patients) patients = data.patients;
-                            if (data.onCallSchedule) onCallSchedule = data.onCallSchedule;
-                            if (data.settings) globalSettings = data.settings;
-                            renderUI();
-                            showToast('✅ Data restored');
-                        }
-                    } catch (err) {
-                        showToast('❌ Invalid backup file');
-                        console.error(err);
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    if (confirm(`Restore ${data.patients?.length || 0} patients and settings?`)) {
+                        if (data.patients) patients = data.patients;
+                        if (data.onCallSchedule) onCallSchedule = data.onCallSchedule;
+                        if (data.settings) globalSettings = data.settings;
+                        renderUI();
+                        showToast('✅ Data restored');
                     }
-                };
-                reader.readAsText(file);
+                } catch (err) {
+                    showToast('❌ Invalid backup file');
+                    console.error(err);
+                }
             };
             input.click();
         };
 
         // Clear All Data
-        window.clearAllData = () => {
+        globalThis.clearAllData = () => {
             patients = [];
             onCallSchedule = [];
             globalSettings = { onCall: "", hospitals: "" };
@@ -2938,7 +2917,7 @@
         };
 
         // Set Auto-Save Interval
-        window.setAutoSaveInterval = (seconds) => {
+        globalThis.setAutoSaveInterval = (seconds) => {
             localStorage.setItem('app-autosave-interval', seconds);
             showToast(`⏱️ Auto-save: ${seconds}s`);
         };
@@ -2951,16 +2930,16 @@
             document.getElementById('context-menu').classList.remove('active');
         }
 
-        window.openContextMenu = (event, patientId) => {
+        globalThis.openContextMenu = (event, patientId) => {
             event.preventDefault();
             const menu = document.getElementById('context-menu');
             const p = patients.find(x => x.id === patientId);
             if (!p) return;
             
             menu.innerHTML = `
-                <div class="context-menu-item" onclick="window.openModal('${patientId}'); closeContextMenu();">✏️ Edit</div>
-                <div class="context-menu-item" onclick="window.toggleArchive('${patientId}', ${!p.archived}); closeContextMenu();">${p.archived ? '↩️ Restore' : '📦 Archive'}</div>
-                <div class="context-menu-item danger" onclick="window.deletePatient('${patientId}'); closeContextMenu();">🗑️ Delete</div>
+                <div class="context-menu-item" onclick="globalThis.openModal('${patientId}'); closeContextMenu();">✏️ Edit</div>
+                <div class="context-menu-item" onclick="globalThis.toggleArchive('${patientId}', ${!p.archived}); closeContextMenu();">${p.archived ? '↩️ Restore' : '📦 Archive'}</div>
+                <div class="context-menu-item danger" onclick="globalThis.deletePatient('${patientId}'); closeContextMenu();">🗑️ Delete</div>
             `;
             
             menu.classList.add('active');
@@ -2981,8 +2960,8 @@
             isConnected = isOnline;
         }
 
-        window.addEventListener('online', updateOfflineStatus);
-        window.addEventListener('offline', updateOfflineStatus);
+        globalThis.addEventListener('online', updateOfflineStatus);
+        globalThis.addEventListener('offline', updateOfflineStatus);
 
         // ============================================================================= 
         // INIT PHASE 1 FEATURES
@@ -2994,7 +2973,7 @@
             updateOfflineStatus();
             
             // Initialize Phase 2 (Sorting & Filtering)
-            setTimeout(() => window.initSortableHeaders(), 500);
+            setTimeout(() => globalThis.initSortableHeaders(), 500);
         }
 
         // ============================================================================= 
@@ -3007,7 +2986,7 @@
         let activeProcedureFilter = null;
 
         // Toggle Advanced Filter Panel
-        window.toggleAdvancedFilterPanel = () => {
+        globalThis.toggleAdvancedFilterPanel = () => {
             const panel = document.getElementById('advanced-filter-panel');
             panel.classList.toggle('active');
             if (!panel.classList.contains('active')) {
@@ -3016,7 +2995,7 @@
         };
 
         // Update sorting when table header clicked
-        window.initSortableHeaders = () => {
+        globalThis.initSortableHeaders = () => {
             document.querySelectorAll('th.sortable').forEach(header => {
                 header.addEventListener('click', (e) => {
                     const column = header.dataset.sortColumn;
@@ -3056,8 +3035,8 @@
                     bVal = new Date(bVal || 0).getTime();
                 } else if (column === 'room') {
                     // Natural sort for room numbers
-                    aVal = parseInt(aVal) || 0;
-                    bVal = parseInt(bVal) || 0;
+                    aVal = Number.parseInt(aVal, 10) || 0;
+                    bVal = Number.parseInt(bVal, 10) || 0;
                 } else {
                     // String comparison
                     aVal = (aVal || '').toString().toLowerCase();
@@ -3065,9 +3044,13 @@
                 }
                 
                 if (direction === 'asc') {
-                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                    if (aVal < bVal) return -1;
+                    if (aVal > bVal) return 1;
+                    return 0;
                 } else {
-                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                    if (aVal > bVal) return -1;
+                    if (aVal < bVal) return 1;
+                    return 0;
                 }
             });
             
@@ -3075,7 +3058,7 @@
         }
 
         // Apply Advanced Filters
-        window.applyAdvancedFilters = () => {
+        globalThis.applyAdvancedFilters = () => {
             const statuses = Array.from(document.querySelectorAll('.filter-status:checked')).map(cb => cb.value);
             const priorities = Array.from(document.querySelectorAll('.filter-priority:checked')).map(cb => cb.value);
             const hospitals = Array.from(document.querySelectorAll('.filter-hospital-cb:checked')).map(cb => cb.value);
@@ -3090,17 +3073,17 @@
                 hospitals: hospitals.length > 0 ? hospitals : null,
                 dateFrom,
                 dateTo,
-                losMax: parseInt(losMax),
+                losMax: Number.parseInt(losMax, 10),
                 showArchived
             };
             
             renderUI();
-            window.toggleAdvancedFilterPanel();
+            globalThis.toggleAdvancedFilterPanel();
             showToast('✓ Filters applied');
         };
 
         // Reset Advanced Filters
-        window.resetAdvancedFilters = () => {
+        globalThis.resetAdvancedFilters = () => {
             document.querySelectorAll('.filter-status, .filter-priority, .filter-hospital-cb').forEach(cb => cb.checked = false);
             document.getElementById('filter-date-from').value = '';
             document.getElementById('filter-date-to').value = '';
@@ -3115,14 +3098,14 @@
         };
 
         // Load Filter Preset
-        window.loadFilterPreset = (preset) => {
+        globalThis.loadFilterPreset = (preset) => {
             const today = new Date().toISOString().split('T')[0];
             
             activeFilters = {};
             activeProcedureFilter = null;
             
             switch(preset) {
-                case 'morning':
+                case 'morning': {
                     // Morning rounds: active only, last 24 hours
                     const yesterday = new Date();
                     yesterday.setDate(yesterday.getDate() - 1);
@@ -3131,7 +3114,8 @@
                     activeFilters.showArchived = false;
                     showToast('🌅 Morning Rounds preset loaded');
                     break;
-                case 'postop':
+                }
+                case 'postop': {
                     // Post-op: status = Post-Op, last 7 days
                     activeFilters.statuses = ['Post-Op'];
                     const sevenDaysAgo = new Date();
@@ -3140,6 +3124,7 @@
                     activeFilters.dateTo = today;
                     showToast('⭐ Post-Op Check preset loaded');
                     break;
+                }
                 case 'statonly':
                     // STAT cases only
                     activeFilters.priorities = ['stat'];
@@ -3155,7 +3140,7 @@
         };
 
         // Filter by Procedure Type
-        window.filterByProcedure = (procedure) => {
+        globalThis.filterByProcedure = (procedure) => {
             if (procedure === 'all') {
                 activeProcedureFilter = null;
                 showToast('🏥 All Procedures');
@@ -3227,7 +3212,7 @@
         }
 
         // Override getFilteredData to include Phase 2 filters
-        const originalGetFilteredData = window.getFilteredData || function() {
+        const originalGetFilteredData = globalThis.getFilteredData || function() {
             let f = [];
             if (currentTab === 'active') f = patients.filter(p => !p.archived);
             else if (currentTab === 'procedures') f = patients.filter(p => !p.archived && PROC_KEYWORDS.test(p.plan || ''));
@@ -3235,11 +3220,11 @@
             return f;
         };
 
-        window.getFilteredData = function() {
+        globalThis.getFilteredData = function() {
             let filtered = originalGetFilteredData();
             
             // Apply search override
-            if (window._searchOverride) return window._searchOverride;
+            if (globalThis._searchOverride) return globalThis._searchOverride;
             
             // Apply advanced filters
             filtered = applyActiveFilters(filtered);
@@ -3261,7 +3246,7 @@
         document.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'f') {
                 e.preventDefault();
-                window.toggleAdvancedFilterPanel();
+                globalThis.toggleAdvancedFilterPanel();
             }
         });
 
@@ -3273,7 +3258,7 @@
         let currentViewMode = 'table';
 
         // Set View Mode
-        window.setViewMode = (mode) => {
+        globalThis.setViewMode = (mode) => {
             currentViewMode = mode;
             
             const tableView = document.querySelector('.view-toggle .view-btn:nth-child(1)');
@@ -3290,19 +3275,20 @@
             } else if (mode === 'card') {
                 cardView?.classList.add('active');
                 document.getElementById('table-section').style.display = 'none';
-                window.renderCardView();
+                globalThis.renderCardView();
             } else if (mode === 'grouped') {
                 groupedView?.classList.add('active');
                 document.getElementById('table-section').style.display = 'none';
                 document.getElementById('card-view-container').classList.remove('active');
-                window.renderGroupedView();
+                globalThis.renderGroupedView();
             }
             
-            showToast(`📊 ${mode === 'table' ? 'Table View' : mode === 'card' ? 'Card View' : 'Hospital Grouping'}`);
+            const viewLabels = { table: 'Table View', card: 'Card View' };
+            showToast(`📊 ${viewLabels[mode] || 'Hospital Grouping'}`);
         };
 
         // Calculate Patient Age from DOB
-        window.calculateAge = (dob) => {
+        globalThis.calculateAge = (dob) => {
             if (!dob) return null;
             const birthDate = new Date(dob);
             const today = new Date();
@@ -3315,7 +3301,7 @@
         };
 
         // Calculate Length of Stay
-        window.calculateLOS = (admitDate) => {
+        globalThis.calculateLOS = (admitDate) => {
             if (!admitDate) return 0;
             const admit = new Date(admitDate);
             const today = new Date();
@@ -3325,8 +3311,8 @@
         };
 
         // Render Status Distribution Pie Chart
-        window.renderStatusChart = () => {
-            const filtered = window._searchOverride || getFilteredData();
+        globalThis.renderStatusChart = () => {
+            const filtered = globalThis._searchOverride || getFilteredData();
             const statuses = ['To-Do', 'In-Progress', 'Completed', 'Post-Op'];
             const counts = statuses.map(s => filtered.filter(p => (p.procedureStatus || 'To-Do') === s).length);
             const colors = ['#d1d5db', '#3b82f6', '#10b981', '#f59e0b'];
@@ -3372,7 +3358,7 @@
         };
 
         function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
-            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180;
             return {
                 x: centerX + radius * Math.cos(angleInRadians),
                 y: centerY + radius * Math.sin(angleInRadians)
@@ -3380,13 +3366,13 @@
         }
 
         // Render Quick Stats
-        window.renderQuickStats = () => {
-            const filtered = window._searchOverride || getFilteredData();
+        globalThis.renderQuickStats = () => {
+            const filtered = globalThis._searchOverride || getFilteredData();
             const stats = {
                 'Total Patients': filtered.length,
                 'STAT Priority': filtered.filter(p => p.stat === true || p.stat === 'true').length,
                 'Pending Tests': filtered.filter(p => p.pending && p.pending.length > 0).length,
-                'Avg LOS': filtered.length > 0 ? Math.round(filtered.reduce((sum, p) => sum + (window.calculateLOS(p.date) || 0), 0) / filtered.length) : 0
+                'Avg LOS': filtered.length > 0 ? Math.round(filtered.reduce((sum, p) => sum + (globalThis.calculateLOS(p.date) || 0), 0) / filtered.length) : 0
             };
             
             const html = Object.entries(stats).map(([label, value]) => `
@@ -3400,17 +3386,17 @@
         };
 
         // Render Patient Summary Statistics
-        window.renderPatientSummary = () => {
-            const filtered = window._searchOverride || getFilteredData();
+        globalThis.renderPatientSummary = () => {
+            const filtered = globalThis._searchOverride || getFilteredData();
             
             const lostmean = filtered.length > 0 
-                ? Math.round(filtered.reduce((sum, p) => sum + (window.calculateLOS(p.date) || 0), 0) / filtered.length)
+                ? Math.round(filtered.reduce((sum, p) => sum + (globalThis.calculateLOS(p.date) || 0), 0) / filtered.length)
                 : 0;
             
             const statCount = filtered.filter(p => p.stat === true || p.stat === 'true').length;
             const procedureCount = filtered.filter(p => PROC_KEYWORDS.test(p.plan || '')).length;
-            const ageAvg = filtered.filter(p => p.dob).length > 0 
-                ? Math.round(filtered.filter(p => p.dob).reduce((sum, p) => sum + (window.calculateAge(p.dob) || 0), 0) / filtered.filter(p => p.dob).length)
+            const ageAvg = filtered.some(p => p.dob) 
+                ? Math.round(filtered.filter(p => p.dob).reduce((sum, p) => sum + (globalThis.calculateAge(p.dob) || 0), 0) / filtered.filter(p => p.dob).length)
                 : '-';
             
             const html = `
@@ -3440,8 +3426,8 @@
         };
 
         // Render Card View
-        window.renderCardView = () => {
-            const filtered = window._searchOverride || getFilteredData();
+        globalThis.renderCardView = () => {
+            const filtered = globalThis._searchOverride || getFilteredData();
             const container = document.getElementById('card-view-container');
             
             if (filtered.length === 0) {
@@ -3451,8 +3437,8 @@
             }
             
             container.innerHTML = filtered.map(p => {
-                const age = window.calculateAge(p.dob);
-                const los = window.calculateLOS(p.date);
+                const age = globalThis.calculateAge(p.dob);
+                const los = globalThis.calculateLOS(p.date);
                 const statClass = (p.stat === true || p.stat === 'true') ? 'stat' : '';
                 const status = p.procedureStatus || 'To-Do';
                 const statusObj = STATUS_COLORS[status] || STATUS_COLORS['To-Do'];
@@ -3503,8 +3489,8 @@
                         </div>` : ''}
                         
                         <div class="card-actions">
-                            <button class="card-action-btn card-edit" onclick="window.openModal('${p.id}')">Edit</button>
-                            <button class="card-action-btn card-print" onclick="window.printPatientRecord('${p.id}')">Print</button>
+                            <button class="card-action-btn card-edit" onclick="globalThis.openModal('${p.id}')">Edit</button>
+                            <button class="card-action-btn card-print" onclick="globalThis.printPatientRecord('${p.id}')">Print</button>
                         </div>
                     </div>
                 `;
@@ -3514,8 +3500,8 @@
         };
 
         // Render Grouped View (By Hospital)
-        window.renderGroupedView = () => {
-            const filtered = window._searchOverride || getFilteredData();
+        globalThis.renderGroupedView = () => {
+            const filtered = globalThis._searchOverride || getFilteredData();
             const container = document.getElementById('grouped-view-container');
             
             if (filtered.length === 0) {
@@ -3539,8 +3525,7 @@
                     </div>
                     <div class="hospital-group-content">
                         ${patients.map(p => {
-                            const age = window.calculateAge(p.dob);
-                            const los = window.calculateLOS(p.date);
+                            const age = globalThis.calculateAge(p.dob);
                             
                             return `
                                 <div style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
@@ -3549,7 +3534,7 @@
                                         <div style="font-size: 0.75rem; color: #666;">MRN: ${p.mrn} ${age ? '| Age: ' + age : ''} | Room: ${p.room}</div>
                                     </div>
                                     <div style="display: flex; gap: 0.5rem;">
-                                        <button onclick="window.openModal('${p.id}')" style="padding: 0.25rem 0.5rem; background: #3b82f6; color: white; border: none; border-radius: 0.25rem; cursor: pointer; font-size: 0.75rem;">Edit</button>
+                                        <button onclick="globalThis.openModal('${p.id}')" style="padding: 0.25rem 0.5rem; background: #3b82f6; color: white; border: none; border-radius: 0.25rem; cursor: pointer; font-size: 0.75rem;">Edit</button>
                                     </div>
                                 </div>
                             `;
@@ -3562,27 +3547,51 @@
         };
 
         // Update charts and stats when data changes
-        const originalRenderUI = window.renderUI;
-        window.renderUI = function() {
+        const originalRenderUI = globalThis.renderUI;
+        globalThis.renderUI = function() {
             originalRenderUI.call(this);
             
             // Render visualizations
             setTimeout(() => {
-                window.renderStatusChart();
-                window.renderQuickStats();
-                window.renderPatientSummary();
+                globalThis.renderStatusChart();
+                globalThis.renderQuickStats();
+                globalThis.renderPatientSummary();
                 
                 if (currentViewMode === 'card') {
-                    window.renderCardView();
+                    globalThis.renderCardView();
                 } else if (currentViewMode === 'grouped') {
-                    window.renderGroupedView();
+                    globalThis.renderGroupedView();
                 }
                 
-                window.initSortableHeaders();
+                globalThis.initSortableHeaders();
             }, 50);
         };
 
-        window.openModal = (id = null) => {
+        function lockBackfilledFields(locked) {
+            const lockedIds = [
+                'f-room', 'f-date', 'f-hospital', 'f-name', 'f-dob', 'f-mrn',
+                'f-md', 'f-plan', 'f-proc-status', 'f-cpt-primary',
+                'f-icd-primary', 'f-charge-codes-secondary', 'f-fu', 'f-pending'
+            ];
+            lockedIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const isSelect = el.tagName === 'SELECT';
+                const isDateInput = el.tagName === 'INPUT' && el.type === 'date';
+                if (isSelect || isDateInput) {
+                    el.disabled = locked;
+                } else {
+                    el.readOnly = locked;
+                }
+                if (locked) {
+                    el.classList.add('opacity-70', 'cursor-not-allowed');
+                } else {
+                    el.classList.remove('opacity-70', 'cursor-not-allowed');
+                }
+            });
+        }
+
+        globalThis.openModal = (id = null) => {
             const modal = document.getElementById('patient-modal');
             if (!modal) return;
             document.body.classList.add('no-scroll');
@@ -3601,30 +3610,6 @@
             const saveBtn = document.getElementById('save-button');
             const changeNoteInput = document.getElementById('f-change-note');
             if (changeNoteInput) changeNoteInput.value = '';
-
-            const lockBackfilledFields = (locked) => {
-                const lockedIds = [
-                    'f-room', 'f-date', 'f-hospital', 'f-name', 'f-dob', 'f-mrn',
-                    'f-md', 'f-plan', 'f-proc-status', 'f-cpt-primary',
-                    'f-icd-primary', 'f-charge-codes-secondary', 'f-fu', 'f-pending'
-                ];
-                lockedIds.forEach((id) => {
-                    const el = document.getElementById(id);
-                    if (!el) return;
-                    const isSelect = el.tagName === 'SELECT';
-                    const isDateInput = el.tagName === 'INPUT' && el.type === 'date';
-                    if (isSelect || isDateInput) {
-                        el.disabled = locked;
-                    } else {
-                        el.readOnly = locked;
-                    }
-                    if (locked) {
-                        el.classList.add('opacity-70', 'cursor-not-allowed');
-                    } else {
-                        el.classList.remove('opacity-70', 'cursor-not-allowed');
-                    }
-                });
-            };
 
             const setEditMode = (isEditing) => {
                 lockBackfilledFields(!isEditing);
@@ -3672,16 +3657,16 @@
                     isAuthenticated,
                     currentUser,
                     isConnected,
-                    m365GetCurrentUserAvailable: typeof window.m365GetCurrentUser === 'function'
+                    m365GetCurrentUserAvailable: typeof globalThis.m365GetCurrentUser === 'function'
                 });
                 
                 // Priority order: M365 user → currentUser → Local User
                 let username = 'Local User';
                 
                 // First, try M365 directly
-                if (typeof window.m365GetCurrentUser === 'function') {
+                if (typeof globalThis.m365GetCurrentUser === 'function') {
                     try {
-                        const m365User = window.m365GetCurrentUser();
+                        const m365User = globalThis.m365GetCurrentUser();
                         console.log('📧 m365GetCurrentUser returned:', m365User);
                         if (m365User) {
                             username = m365User;
@@ -3701,13 +3686,13 @@
                 createdByField.value = username;
             }
 
-            if (id && typeof window.getCurrentPatients === 'function') {
+            if (id && typeof globalThis.getCurrentPatients === 'function') {
                 setEditMode(false);
-                const patients = window.getCurrentPatients();
+                const patients = globalThis.getCurrentPatients();
                 const p = patients.find(x => x.id === id);
                 if (!p) {
-                    if (typeof window.showToast === 'function') {
-                        window.showToast('Record not found');
+                    if (typeof globalThis.showToast === 'function') {
+                        globalThis.showToast('Record not found');
                     }
                     document.body.classList.remove('no-scroll');
                     return;
@@ -3719,11 +3704,11 @@
                     archiveBtn.textContent = p.archived ? 'Restore' : 'Archive';
                 }
                 if (deleteBtn) deleteBtn.classList.remove('hidden');
-                if (typeof window.refreshPatientFiles === 'function') {
-                    window.refreshPatientFiles(id);
+                if (typeof globalThis.refreshPatientFiles === 'function') {
+                    globalThis.refreshPatientFiles(id);
                 }
-                if (typeof AuditLogger !== 'undefined' && typeof AuditLogger.logDataAccess === 'function') {
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                if (AuditLogger !== undefined && typeof AuditLogger.logDataAccess === 'function') {
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataAccess(auditUser, id, 'view');
                 }
                 if (p) {
@@ -3749,11 +3734,12 @@
                     const createdByField = document.getElementById('f-created-by');
                     if (createdByField) {
                         let creator = p.createdBy || '';
-                        if (!creator && typeof window.m365GetCurrentUser === 'function') {
+                        if (!creator && typeof globalThis.m365GetCurrentUser === 'function') {
                             try {
-                                creator = window.m365GetCurrentUser() || '';
+                                creator = globalThis.m365GetCurrentUser() || '';
                             } catch (e) {
                                 creator = '';
+                                console.debug('Could not determine record creator:', e.message);
                             }
                         }
                         if (!creator && currentUser) {
@@ -3765,7 +3751,7 @@
                     if (p.findingsCodes && p.findingsCodes.length > 0) {
                         document.querySelectorAll('.findings-checkbox').forEach(cb => {
                             cb.checked = p.findingsCodes.includes(cb.value);
-                            const isCustomCode = FINDINGS_CUSTOM_CODES.includes(cb.value);
+                            const isCustomCode = FINDINGS_CUSTOM_CODES.has(cb.value);
                             const customValue = p.findingsValues ? p.findingsValues[cb.value] : null;
                             const valueInput = document.querySelector(`textarea.findings-value[data-code="${cb.value}"]`);
                             const dateInput = document.querySelector(`input.findings-date[data-code="${cb.value}"]`);
@@ -3793,8 +3779,8 @@
                                 }
                             }
                         });
-                        if (typeof window.syncFindingsUI === 'function') {
-                            window.syncFindingsUI();
+                        if (typeof globalThis.syncFindingsUI === 'function') {
+                            globalThis.syncFindingsUI();
                         }
                     }
                 } else {
@@ -3808,47 +3794,24 @@
                 if (archiveBtn) archiveBtn.classList.add('hidden');
                 if (deleteBtn) deleteBtn.classList.add('hidden');
                 if (editToggleBtn) editToggleBtn.classList.add('hidden');
-                if (typeof window.clearPatientFiles === 'function') {
-                    window.clearPatientFiles();
+                if (typeof globalThis.clearPatientFiles === 'function') {
+                    globalThis.clearPatientFiles();
                 }
             }
-            if (typeof window.syncFindingsUI === 'function') {
-                window.syncFindingsUI();
+            if (typeof globalThis.syncFindingsUI === 'function') {
+                globalThis.syncFindingsUI();
             }
             modal.classList.remove('hidden');
             setTimeout(() => modal.querySelector('.modal-container')?.scrollTo(0, 0), 100);
         };
 
-        window.viewPatientCard = (id) => {
-            window.openModal(id);
+        globalThis.viewPatientCard = (id) => {
+            globalThis.openModal(id);
         };
 
-        window.enableModalEdit = () => {
+        globalThis.enableModalEdit = () => {
             const editToggleBtn = document.getElementById('modal-edit-btn');
             const saveBtn = document.getElementById('save-button');
-            const lockBackfilledFields = (locked) => {
-                const lockedIds = [
-                    'f-room', 'f-date', 'f-hospital', 'f-name', 'f-dob', 'f-mrn',
-                    'f-md', 'f-plan', 'f-proc-status', 'f-cpt-primary',
-                    'f-icd-primary', 'f-charge-codes-secondary', 'f-fu', 'f-pending'
-                ];
-                lockedIds.forEach((id) => {
-                    const el = document.getElementById(id);
-                    if (!el) return;
-                    const isSelect = el.tagName === 'SELECT';
-                    const isDateInput = el.tagName === 'INPUT' && el.type === 'date';
-                    if (isSelect || isDateInput) {
-                        el.disabled = locked;
-                    } else {
-                        el.readOnly = locked;
-                    }
-                    if (locked) {
-                        el.classList.add('opacity-70', 'cursor-not-allowed');
-                    } else {
-                        el.classList.remove('opacity-70', 'cursor-not-allowed');
-                    }
-                });
-            };
             lockBackfilledFields(false);
             if (saveBtn) {
                 saveBtn.disabled = false;
@@ -3880,14 +3843,14 @@
 
         const localPatientFiles = new Map();
 
-        window.clearPatientFiles = () => {
+        globalThis.clearPatientFiles = () => {
             const list = document.getElementById('patient-files-list');
             if (list) list.innerHTML = '<div class="text-slate-400">No files uploaded.</div>';
             const input = document.getElementById('patient-files-input');
             if (input) input.value = '';
         };
 
-        window.refreshPatientFiles = async (patientId) => {
+        globalThis.refreshPatientFiles = async (patientId) => {
             const list = document.getElementById('patient-files-list');
             if (!list) return;
 
@@ -3902,15 +3865,15 @@
                 list.innerHTML = items.map(item => `
                     <div class="flex items-center justify-between bg-white border border-slate-200 rounded p-2">
                         <a class="text-blue-700 font-bold" href="${item.url}" target="_blank">${item.name}</a>
-                        <button class="text-red-600 font-bold" onclick="window.deletePatientFile('${item.id}', true)">Delete</button>
+                        <button class="text-red-600 font-bold" onclick="globalThis.deletePatientFile('${item.id}', true)">Delete</button>
                     </div>
                 `).join('');
                 return;
             }
 
             try {
-                if (typeof window.m365FetchPatientFiles === 'function') {
-                    const files = await window.m365FetchPatientFiles(patientId);
+                if (typeof globalThis.m365FetchPatientFiles === 'function') {
+                    const files = await globalThis.m365FetchPatientFiles(patientId);
                     if (!files || files.length === 0) {
                         list.innerHTML = '<div class="text-slate-400">No files uploaded.</div>';
                         return;
@@ -3918,7 +3881,7 @@
                     list.innerHTML = files.map(item => `
                         <div class="flex items-center justify-between bg-white border border-slate-200 rounded p-2">
                             <a class="text-blue-700 font-bold" href="${item.webUrl}" target="_blank">${item.name}</a>
-                            <button class="text-red-600 font-bold" onclick="window.deletePatientFile('${item.driveItemId}')">Delete</button>
+                            <button class="text-red-600 font-bold" onclick="globalThis.deletePatientFile('${item.driveItemId}')">Delete</button>
                         </div>
                     `).join('');
                 } else {
@@ -3935,7 +3898,7 @@
             }
         };
 
-        window.uploadPatientFiles = async () => {
+        globalThis.uploadPatientFiles = async () => {
             const input = document.getElementById('patient-files-input');
             const editId = document.getElementById('edit-id')?.value;
             if (!input || !input.files || input.files.length === 0) return;
@@ -3951,28 +3914,28 @@
                 files.forEach((file) => {
                     const url = URL.createObjectURL(file);
                     items.push({ id: `local-${Date.now()}-${file.name}`, name: file.name, url });
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, editId, 'file_upload', null, file.name);
                 });
                 localPatientFiles.set(editId, items);
                 input.value = '';
-                window.refreshPatientFiles(editId);
+                globalThis.refreshPatientFiles(editId);
                 showToast('✓ Files added (Local)');
                 return;
             }
 
             try {
-                if (typeof window.m365UploadPatientFile === 'function') {
+                if (typeof globalThis.m365UploadPatientFile === 'function') {
                     for (const file of files) {
-                        await window.m365UploadPatientFile(editId, file, {
+                        await globalThis.m365UploadPatientFile(editId, file, {
                             mrn: document.getElementById('f-mrn')?.value || '',
                             visitKey: document.getElementById('f-visit-key')?.value || ''
                         });
-                        const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                        const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                         AuditLogger.logDataChange(auditUser, editId, 'file_upload', null, file.name);
                     }
                     input.value = '';
-                    window.refreshPatientFiles(editId);
+                    globalThis.refreshPatientFiles(editId);
                     showToast('✓ File(s) uploaded');
                 } else {
                     showToast('File upload unavailable');
@@ -3983,24 +3946,24 @@
             }
         };
 
-        window.deletePatientFile = async (fileId, isLocal = false) => {
+        globalThis.deletePatientFile = async (fileId, isLocal = false) => {
             const editId = document.getElementById('edit-id')?.value;
             if (!editId) return;
             if (isLocal) {
                 const items = (localPatientFiles.get(editId) || []).filter(item => item.id !== fileId);
                 localPatientFiles.set(editId, items);
-                const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                 AuditLogger.logDataChange(auditUser, editId, 'file_delete', fileId, null);
-                window.refreshPatientFiles(editId);
+                globalThis.refreshPatientFiles(editId);
                 showToast('✓ File deleted');
                 return;
             }
             try {
-                if (typeof window.m365DeletePatientFile === 'function') {
-                    await window.m365DeletePatientFile(fileId);
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                if (typeof globalThis.m365DeletePatientFile === 'function') {
+                    await globalThis.m365DeletePatientFile(fileId);
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, editId, 'file_delete', fileId, null);
-                    window.refreshPatientFiles(editId);
+                    globalThis.refreshPatientFiles(editId);
                     showToast('✓ File deleted');
                 } else {
                     showToast('File delete unavailable');
@@ -4011,25 +3974,25 @@
             }
         };
 
-        window.archiveFromModal = async () => {
+        globalThis.archiveFromModal = async () => {
             const editId = document.getElementById('edit-id')?.value;
             if (!editId) return;
             const archivedInput = document.getElementById('f-archived');
             const isArchived = archivedInput?.value === 'true';
-            await window.toggleArchive(editId, !isArchived);
+            await globalThis.toggleArchive(editId, !isArchived);
             if (archivedInput) archivedInput.value = (!isArchived).toString();
             const archiveBtn = document.getElementById('modal-archive-btn');
-            if (archiveBtn) archiveBtn.textContent = (!isArchived) ? 'Restore' : 'Archive';
+            if (archiveBtn) archiveBtn.textContent = isArchived ? 'Archive' : 'Restore';
         };
 
-        window.deleteFromModal = async () => {
+        globalThis.deleteFromModal = async () => {
             const editId = document.getElementById('edit-id')?.value;
             if (!editId) return;
-            await window.deletePatient(editId);
-            window.closeModal();
+            await globalThis.deletePatient(editId);
+            globalThis.closeModal();
         };
 
-        window.closeModal = () => {
+        globalThis.closeModal = () => {
             const modal = document.getElementById('patient-modal');
             if (modal) {
                 modal.classList.add('hidden');
@@ -4086,7 +4049,7 @@
                 
                 if (confirm('Found unsaved draft from earlier. Restore it?')) {
                     Object.keys(draft).forEach(key => {
-                        const fieldId = 'f-' + key.replace(/([A-Z])/g, '-$1').toLowerCase()
+                        const fieldId = 'f-' + key.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
                             .replace('supervising-md', 'md')
                             .replace('follow-up', 'fu')
                             .replace('cpt-primary', 'cpt-primary')
@@ -4115,11 +4078,11 @@
                 setTimeout(() => indicator.classList.add('opacity-0'), 2000);
             }
         }
-        window.closeMapper = () => {
+        globalThis.closeMapper = () => {
             document.body.classList.remove('no-scroll');
             document.getElementById('mapper-modal')?.classList.add('hidden');
         };
-        window.closeHandoffModal = () => {
+        globalThis.closeHandoffModal = () => {
             document.body.classList.remove('no-scroll');
             document.getElementById('handoff-modal')?.classList.add('hidden');
         };
@@ -4153,7 +4116,7 @@
         let isConnected = false;
         let isAuthenticated = false;  // Track authentication state
 
-        window.getCurrentPatients = () => patients;
+        globalThis.getCurrentPatients = () => patients;
 
         const PROC_KEYWORDS = /(cysto|stent|turbt|litho|laser|surgery|bx|biopsy|procedure|or|scheduled|urology|pcn|urs|nephrectomy|robotic)/i;
         const STATUS_COLORS = {
@@ -4168,7 +4131,7 @@
             // 3-Pass Parser as per architecture
             return {
                 parse3Pass: (csvText) => {
-                    const lines = csvText.trim().split('\n').map(l => l.trim()).filter(l => l);
+                    const lines = csvText.trim().split('\n').map(l => l.trim()).filter(Boolean);
                     if (lines.length < 5) throw new Error('Invalid CSV: insufficient rows');
 
                     const result = { onCall: [], patients: [], hospitals: [] };
@@ -4259,21 +4222,13 @@
                     }
                 },
 
-                handleFileUpload: (file) => {
-                    return new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            try {
-                                const csvText = e.target.result;
-                                const parsed = CSVImporter.parse3Pass(csvText);
-                                resolve(parsed);
-                            } catch (err) {
-                                reject(err);
-                            }
-                        };
-                        reader.onerror = () => reject(new Error('File read failed'));
-                        reader.readAsText(file);
-                    });
+                handleFileUpload: async (file) => {
+                    try {
+                        const csvText = await file.text();
+                        return CSVImporter.parse3Pass(csvText);
+                    } catch (err) {
+                        throw new Error('File read failed: ' + err.message);
+                    }
                 }
             };
         })();
@@ -4353,26 +4308,26 @@
             console.log('🔄 Forcing fresh page load...');
             sessionStorage.setItem('appVersion', CURRENT_VERSION);
             // Clear query params and reload
-            window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+            globalThis.location.href = globalThis.location.origin + globalThis.location.pathname + '?v=' + Date.now();
         } else {
             sessionStorage.setItem('appVersion', CURRENT_VERSION);
         }
         
         // Initialize M365 after all scripts have loaded
-        window.addEventListener('load', () => {
+        globalThis.addEventListener('load', () => {
             console.group('🔧 HTML Initialization (window load event)');
 
             console.log('⏱️  Timestamp:', new Date().toISOString());
             
             // Check callback availability FIRST
             console.log('📡 Callback check:', {
-                updateAuthState: typeof window.updateAuthState,
-                showToast: typeof window.showToast,
-                m365Login: typeof window.m365Login
+                updateAuthState: typeof globalThis.updateAuthState,
+                showToast: typeof globalThis.showToast,
+                m365Login: typeof globalThis.m365Login
             });
             
             // Wait for M365_CONFIG to be available
-            if (typeof M365_CONFIG !== 'undefined') {
+            if (typeof M365_CONFIG !== 'undefined' && M365_CONFIG !== undefined) {
                 console.log('✅ M365_CONFIG found');
                 console.log('📋 Config details:', {
                     clientId: M365_CONFIG.auth.clientId.substring(0, 8) + '...',
@@ -4409,7 +4364,7 @@
                         showLoginPrompt();
                     }
                 } else if (!useM365) {
-                    // Local mode - no M365 config, stays in offline mode
+                    // Local mode
                     isConnected = false;
                     useM365 = false;
                     isAuthenticated = false;
@@ -4432,26 +4387,26 @@
         });
         
         // Callback functions that m365-integration.js will call to update UI
-        window.updatePatientsFromM365 = function(patientsData) {
+        globalThis.updatePatientsFromM365 = function(patientsData) {
             console.log('📊 updatePatientsFromM365 called with', patientsData.length, 'patients');
             patients = patientsData;
             renderUI();
         };
         
-        window.updateOnCallFromM365 = function(onCallData) {
+        globalThis.updateOnCallFromM365 = function(onCallData) {
             console.log('📅 updateOnCallFromM365 called with', onCallData.length, 'on-call shifts');
             onCallSchedule = onCallData;
             updateOnCallDashboard();
         };
         
-        window.updateSettingsFromM365 = function(settingsData) {
+        globalThis.updateSettingsFromM365 = function(settingsData) {
             console.log('⚙️  updateSettingsFromM365 called:', settingsData);
             globalSettings = { onCall: settingsData.defaultOnCall || '', hospitals: settingsData.hospitals || '' };
             updateOnCallDashboard();
         };
         
         // Callback for authentication state changes
-        window.updateAuthState = function(authenticated, username = '') {
+        globalThis.updateAuthState = function(authenticated, username = '') {
             console.group('🔐 updateAuthState called');
             console.log('authenticated:', authenticated);
             console.log('username:', username);
@@ -4512,7 +4467,7 @@
                 if (loginBtn) {
                     loginBtn.style.display = '';
                     loginBtn.textContent = '🔓 Logout';
-                    loginBtn.onclick = () => window.m365Logout && window.m365Logout();
+                    loginBtn.onclick = () => globalThis.m365Logout && globalThis.m365Logout();
                 }
                 
                 // Show content, stats, and tabs
@@ -4533,7 +4488,7 @@
                 if (loginBtn) {
                     loginBtn.style.display = '';
                     loginBtn.textContent = '🔐 Login';
-                    loginBtn.onclick = () => window.m365Login && window.m365Login();
+                    loginBtn.onclick = () => globalThis.m365Login && globalThis.m365Login();
                 }
                 
                 // Hide content, stats, and tabs
@@ -4572,7 +4527,7 @@
                         <div class="text-6xl mb-6">🔐</div>
                         <h2 class="text-2xl font-bold text-slate-900 mb-4">Authentication Required</h2>
                         <p class="text-slate-600 mb-8">Please sign in with your Microsoft 365 account to access the Clinical Rounding platform.</p>
-                        <button onclick="window.m365Login && window.m365Login()" class="px-6 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors shadow-lg">
+                        <button onclick="globalThis.m365Login && globalThis.m365Login()" class="px-6 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors shadow-lg">
                             Sign In with Microsoft 365
                         </button>
                         <p class="text-xs text-slate-500 mt-6">This application requires organizational authentication for HIPAA compliance and audit logging.</p>
@@ -4621,14 +4576,14 @@
         }, true);  // Use capture phase to intercept before any handlers
         console.log('✅ Form submission blocker installed');
         
-        window.savePatient = async (e) => {
+        globalThis.savePatient = async (e) => {
             console.log('📥 savePatient called, current isSaving state:', isSaving);
             console.log('📥 Event type:', e ? e.type : 'no event');
             
             // SET LOCK FIRST - before anything else
             if (isSaving) {
                 console.warn('⏭️  Save already in progress, skipping duplicate call');
-                console.log('   Stack trace:', new Error().stack);
+                console.log('   Stack trace:', new Error('Save re-entry detected').stack);
                 return false;
             }
             isSaving = true;  // Lock immediately
@@ -4661,10 +4616,10 @@
             }
             
             console.log('💾 Starting save...');
-            console.log('🔍 Save context:', { isConnected, useM365, hasM365SaveFunction: typeof window.m365SavePatient === 'function' });
+            console.log('🔍 Save context:', { isConnected, useM365, hasM365SaveFunction: typeof globalThis.m365SavePatient === 'function' });
             
             const codesInput = document.getElementById('f-findings-codes');
-            const findingsCodes = codesInput.value ? codesInput.value.split(',').map(c => c.trim()).filter(c => c) : [];
+            const findingsCodes = codesInput.value ? codesInput.value.split(',').map(c => c.trim()).filter(Boolean) : [];
             const valuesInput = document.getElementById('f-findings-values');
             const findingsValues = valuesInput.value ? JSON.parse(valuesInput.value) : {};
             const datesInput = document.getElementById('f-findings-dates');
@@ -4711,7 +4666,7 @@
                     showToast('⚠️ Change note is required for updates');
                     return false;
                 }
-                const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                 const getPreviousPatient = () => {
                     if (!editId) return null;
                     const existing = patients.find(p => p.id === editId);
@@ -4773,11 +4728,11 @@
                     renderUI();
                     clearDraft(); // Clear draft on successful save
                     showToast("✓ Saved (Local)");
-                    setTimeout(() => window.closeModal(), 100); // Slight delay to let toast show
+                    setTimeout(() => globalThis.closeModal(), 100); // Slight delay to let toast show
                 } else {
                     console.log('☁️ Using M365 MODE (SharePoint)');
                     // M365 mode: use Graph API via m365-integration.js
-                    if (typeof window.m365SavePatient === 'function') {
+                    if (typeof globalThis.m365SavePatient === 'function') {
                         console.log('✅ m365SavePatient function available, calling it now...');
                         console.log('📦 Data being sent:', { mrn: data.mrn, name: data.name, date: data.date, hospital: data.hospital });
                         if (editId) {
@@ -4788,9 +4743,9 @@
                                 data.lastChangeNoteBy = auditUser;
                             }
                         }
-                        console.log('📤 About to call window.m365SavePatient...');
+                        console.log('📤 About to call globalThis.m365SavePatient...');
                         try {
-                            const result = await window.m365SavePatient(data);
+                            const result = await globalThis.m365SavePatient(data);
                             console.log('✅ m365SavePatient returned:', result);
                             console.log('📊 Save result type:', typeof result, 'value:', result);
                             
@@ -4807,11 +4762,11 @@
                             }
                             clearDraft(); // Clear draft on successful save
                             showToast("✓ Saved");
-                            setTimeout(() => window.closeModal(), 100); // Slight delay to let toast show
+                            setTimeout(() => globalThis.closeModal(), 100); // Slight delay to let toast show
                             // Refetch data to update UI
-                            if (typeof window.m365FetchPatients === 'function') {
+                            if (typeof globalThis.m365FetchPatients === 'function') {
                                 console.log('🔄 Refetching patients...');
-                                await window.m365FetchPatients();
+                                await globalThis.m365FetchPatients();
                             }
                         } catch (m365Err) {
                             console.error('❌ m365SavePatient threw error:', m365Err.message);
@@ -4842,14 +4797,14 @@
             return false; // Prevent default form submission
         };
 
-        window.toggleArchive = async (id, shouldArchive) => {
+        globalThis.toggleArchive = async (id, shouldArchive) => {
             const changeNote = getRequiredChangeNote(shouldArchive ? 'archiving' : 'restoring');
             if (!changeNote) return;
             if (!isConnected || !useM365) {
                 // Local mode: update in memory
                 const p = patients.find(x => x.id === id);
                 if (p) {
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'archived', p.archived, shouldArchive);
                     AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     p.archived = shouldArchive;
@@ -4862,17 +4817,17 @@
                 return;
             }
             try {
-                if (typeof window.m365SavePatient === 'function') {
+                if (typeof globalThis.m365SavePatient === 'function') {
                     const patient = patients.find(p => p.id === id);
                     if (patient) {
-                        const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                        const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                         AuditLogger.logDataChange(auditUser, id, 'archived', patient.archived, shouldArchive);
                         AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                         patient.archived = shouldArchive;
                         patient.lastChangeNote = changeNote;
                         patient.lastChangeNoteAt = new Date().toISOString();
                         patient.lastChangeNoteBy = auditUser;
-                        await window.m365SavePatient(patient);
+                        await globalThis.m365SavePatient(patient);
                         showToast(shouldArchive ? "Archived" : "Restored");
                     }
                 }
@@ -4881,14 +4836,14 @@
             }
         };
 
-        window.updateStatusQuick = async (id, newStatus) => {
+        globalThis.updateStatusQuick = async (id, newStatus) => {
             const changeNote = getRequiredChangeNote('status update');
             if (!changeNote) return;
             if (!isConnected || !useM365) {
                 // Local mode: update in memory
                 const p = patients.find(x => x.id === id);
                 if (p) {
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'procedureStatus', p.procedureStatus, newStatus);
                     AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     p.procedureStatus = newStatus;
@@ -4900,17 +4855,17 @@
                 return;
             }
             try {
-                if (typeof window.m365SavePatient === 'function') {
+                if (typeof globalThis.m365SavePatient === 'function') {
                     const patient = patients.find(p => p.id === id);
                     if (patient) {
-                        const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                        const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                         AuditLogger.logDataChange(auditUser, id, 'procedureStatus', patient.procedureStatus, newStatus);
                         AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                         patient.procedureStatus = newStatus;
                         patient.lastChangeNote = changeNote;
                         patient.lastChangeNoteAt = new Date().toISOString();
                         patient.lastChangeNoteBy = auditUser;
-                        await window.m365SavePatient(patient);
+                        await globalThis.m365SavePatient(patient);
                     }
                 }
             } catch (err) {
@@ -4918,7 +4873,7 @@
             }
         };
 
-        window.deletePatient = async (id) => {
+        globalThis.deletePatient = async (id) => {
             if (!confirm("Delete this patient record? This cannot be undone.")) return;
             const changeNote = getRequiredChangeNote('deleting');
             if (!changeNote) return;
@@ -4927,7 +4882,7 @@
                 // Local mode
                 const index = patients.findIndex(p => p.id === id);
                 if (index !== -1) {
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'record', 'present', 'deleted');
                     AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
                     patients.splice(index, 1);
@@ -4937,15 +4892,15 @@
                 return;
             }
             try {
-                if (typeof window.m365DeletePatient === 'function') {
-                    const auditUser = (typeof window.m365GetCurrentUser === 'function' ? window.m365GetCurrentUser() : '') || currentUser || 'unknown';
+                if (typeof globalThis.m365DeletePatient === 'function') {
+                    const auditUser = (typeof globalThis.m365GetCurrentUser === 'function' ? globalThis.m365GetCurrentUser() : '') || currentUser || 'unknown';
                     AuditLogger.logDataChange(auditUser, id, 'record', 'present', 'deleted');
                     AuditLogger.logDataChange(auditUser, id, 'changeNote', null, changeNote);
-                    await window.m365DeletePatient(id);
+                    await globalThis.m365DeletePatient(id);
                     showToast("✓ Deleted");
                     // Refetch to update UI
-                    if (typeof window.m365FetchPatients === 'function') {
-                        await window.m365FetchPatients();
+                    if (typeof globalThis.m365FetchPatients === 'function') {
+                        await globalThis.m365FetchPatients();
                     }
                 }
             } catch (err) {
@@ -4954,7 +4909,7 @@
             }
         };
 
-        window.setTab = (tab) => {
+        globalThis.setTab = (tab) => {
             currentTab = tab;
             ['table-section', 'calendar-section', 'oncall-section', 'timeline-section', 'analytics-section', 'reports-section', 'audit-section', 'procedure-log-section', 'shift-report-section'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
             
@@ -4977,24 +4932,24 @@
                     dateInput.value = new Date().toISOString().split('T')[0];
                 }
                 if (hospitalCheckboxes.length > 0 && lastShift?.hospitals) {
-                    const lastHospitals = lastShift.hospitals.split(',').map(h => h.trim());
+                    const lastHospitals = new Set(lastShift.hospitals.split(',').map(h => h.trim()));
                     hospitalCheckboxes.forEach(cb => {
-                        cb.checked = lastHospitals.includes(cb.value);
+                        cb.checked = lastHospitals.has(cb.value);
                     });
                 }
             } else if (tab === 'timeline') {
                 document.getElementById('timeline-section')?.classList.remove('hidden');
             } else if (tab === 'analytics') {
                 document.getElementById('analytics-section')?.classList.remove('hidden');
-                window.loadAnalyticsDashboard();
+                globalThis.loadAnalyticsDashboard();
             } else if (tab === 'reports') {
                 document.getElementById('reports-section')?.classList.remove('hidden');
             } else if (tab === 'audit') {
                 document.getElementById('audit-section')?.classList.remove('hidden');
-                window.loadAuditLogs();
+                globalThis.loadAuditLogs();
             } else if (tab === 'procedure-log') {
                 document.getElementById('procedure-log-section')?.classList.remove('hidden');
-                window.renderProcedureLog();
+                globalThis.renderProcedureLog();
             } else if (tab === 'shift-report') {
                 document.getElementById('shift-report-section')?.classList.remove('hidden');
             } else {
@@ -5017,12 +4972,12 @@
             renderUI();
         };
 
-        window.prevMonth = () => {
+        globalThis.prevMonth = () => {
             calDate.setMonth(calDate.getMonth() - 1);
             renderCalendar();
         };
 
-        window.nextMonth = () => {
+        globalThis.nextMonth = () => {
             calDate.setMonth(calDate.getMonth() + 1);
             renderCalendar();
         };
@@ -5064,7 +5019,7 @@
                     <div class="font-bold text-slate-500 mb-1">${d}</div>
                     ${holidayHtml}
                     <div class="space-y-0.5">
-                        ${procs.map(p => `<div class="font-bold bg-blue-100 text-blue-700 px-1 py-0.5 rounded text-[8px] cursor-pointer hover:bg-blue-200" onclick="window.openModal('${p.id}')">${p.name}</div>`).join('')}
+                        ${procs.map(p => `<div class="font-bold bg-blue-100 text-blue-700 px-1 py-0.5 rounded text-[8px] cursor-pointer hover:bg-blue-200" onclick="globalThis.openModal('${p.id}')">${p.name}</div>`).join('')}
                     </div>
                 </div>`;
             }
@@ -5078,13 +5033,13 @@
             updateStats();
             
             // Initialize Phase 2 sortable headers
-            setTimeout(() => window.initSortableHeaders(), 50);
+            setTimeout(() => globalThis.initSortableHeaders(), 50);
         }
 
         function renderMainTable() {
             const container = document.getElementById('table-body');
             if (!container) return;
-            const filtered = window._searchOverride || getFilteredData();
+            const filtered = globalThis._searchOverride || getFilteredData();
             
             if (filtered.length === 0) {
                 container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400 text-sm">No entries</td></tr>`;
@@ -5104,7 +5059,7 @@
                 const statClass = (p.stat === true || p.stat === 'true') ? 'bg-red-600 text-white border-4 border-red-800 shadow-lg shadow-red-500/50' : 'bg-white border-b border-slate-100';
                 
                 return `
-                <tr class="hover:bg-slate-50 transition-colors ${statClass}" oncontextmenu="window.openContextMenu(event, '${p.id}')">
+                <tr class="hover:bg-slate-50 transition-colors ${statClass}" oncontextmenu="globalThis.openContextMenu(event, '${p.id}')">
                     <td class="p-3"><input type="checkbox" data-patient-checkbox value="${p.id}" onchange="updateBatchOpCount()" class="w-5 h-5 rounded cursor-pointer" ${selectedPatientIds.has(p.id)?'checked':''}></td>
                     ${visibleCols.includes('room') ? `<td class="p-3"><div class="font-bold text-sm text-slate-900">${p.room}</div></td>` : ''}
                     ${visibleCols.includes('hospital') ? `<td class="p-3"><div class="text-xs font-semibold text-slate-700">${p.hospital || 'N/A'}</div></td>` : ''}
@@ -5116,7 +5071,7 @@
                     ${visibleCols.includes('plan') ? `<td class="p-3"><div class="text-xs font-bold text-slate-800 mb-1">${p.plan || '-'}</div></td>` : ''}
                     <td class="p-3">
                         ${isProc ? `<div class="flex items-center gap-2">
-                            <select onchange="window.updateStatusQuick('${p.id}', this.value)" class="text-[8px] rounded px-1.5 py-1 ${statusObj.bg} border font-bold flex-1">
+                            <select onchange="globalThis.updateStatusQuick('${p.id}', this.value)" class="text-[8px] rounded px-1.5 py-1 ${statusObj.bg} border font-bold flex-1">
                                 <option value="To-Do" ${status === 'To-Do' ? 'selected' : ''}>To-Do ⬜</option>
                                 <option value="In-Progress" ${status === 'In-Progress' ? 'selected' : ''}>In-Prog 🔵</option>
                                 <option value="Completed" ${status === 'Completed' ? 'selected' : ''}>Done ✅</option>
@@ -5126,8 +5081,8 @@
                         </div>` : ''}
                     </td>
                     <td class="p-3 flex gap-1 flex-col">
-                        <button onclick="window.openModal('${p.id}')" class="text-[9px] font-bold bg-blue-600 text-white px-2 py-1.5 rounded hover:bg-blue-700 transition-colors">Edit</button>
-                        <button onclick="window.printPatientRecord('${p.id}')" class="text-[9px] font-bold bg-slate-700 text-white px-2 py-1.5 rounded hover:bg-slate-800 transition-colors">Print</button>
+                        <button onclick="globalThis.openModal('${p.id}')" class="text-[9px] font-bold bg-blue-600 text-white px-2 py-1.5 rounded hover:bg-blue-700 transition-colors">Edit</button>
+                        <button onclick="globalThis.printPatientRecord('${p.id}')" class="text-[9px] font-bold bg-slate-700 text-white px-2 py-1.5 rounded hover:bg-slate-800 transition-colors">Print</button>
                     </td>
                 </tr>`;
             }).join('');
@@ -5139,7 +5094,7 @@
             list.innerHTML = onCallSchedule.sort((a,b)=>new Date(a.date)-new Date(b.date)).map(s => `
                 <div class="flex items-center justify-between p-3 bg-white rounded border border-slate-200 mb-2">
                     <div><p class="text-xs font-bold text-slate-400">${s.date}</p><p class="text-sm font-black text-slate-800">${s.provider}</p><p class="text-xs text-slate-500">${s.hospitals || '-'}</p></div>
-                    <button onclick="window.deleteShift('${s.id}')" class="text-red-600 font-bold text-xs px-2 py-1 rounded bg-red-50">Delete</button>
+                    <button onclick="globalThis.deleteShift('${s.id}')" class="text-red-600 font-bold text-xs px-2 py-1 rounded bg-red-50">Delete</button>
                 </div>`).join('');
         }
 
@@ -5204,11 +5159,11 @@
             return f.sort((a,b) => new Date(b.date) - new Date(a.date));
         }
 
-        window.applyFilters = () => {
+        globalThis.applyFilters = () => {
             renderUI();
         };
 
-        window.clearFilters = () => {
+        globalThis.clearFilters = () => {
             const filterDate = document.getElementById('filter-date');
             const filterHospital = document.getElementById('filter-hospital');
             const filterRoom = document.getElementById('filter-room');
@@ -5222,14 +5177,14 @@
             renderUI();
         };
 
-        window.togglePatientSelection = (id) => { 
+        globalThis.togglePatientSelection = (id) => { 
             if(selectedPatientIds.has(id)) selectedPatientIds.delete(id); 
             else selectedPatientIds.add(id); 
             updateHandoffButton(); 
             renderUI();
         };
         
-        window.toggleAllSelection = (e) => { 
+        globalThis.toggleAllSelection = (e) => { 
             const filtered = getFilteredData(); 
             if(e.target.checked) filtered.forEach(p=>selectedPatientIds.add(p.id)); 
             else filtered.forEach(p=>selectedPatientIds.delete(p.id)); 
@@ -5247,7 +5202,7 @@
 
                 // ===================== PRINT FEATURE =====================
                 // Print a single patient record by id
-                window.printPatientRecord = (id) => {
+                globalThis.printPatientRecord = (id) => {
                         const patient = patients.find(p => p.id === id);
                         if (!patient) return showToast('Patient not found');
                         const html = generatePrintHtml([patient]);
@@ -5255,7 +5210,7 @@
                 };
 
                 // Print multiple selected patient records
-                window.printSelectedPatientRecords = () => {
+                globalThis.printSelectedPatientRecords = () => {
                         const selected = patients.filter(p => selectedPatientIds.has(p.id));
                         if (!selected.length) return showToast('No patients selected');
                         const html = generatePrintHtml(selected);
@@ -5323,7 +5278,7 @@
 
                 // Helper: Open print window and trigger print
                 function openPrintWindow(html) {
-                        const w = window.open('', '_blank');
+                        const w = globalThis.open('', '_blank');
                         if (!w) return showToast('Pop-up blocked. Allow pop-ups to print.');
                         w.document.write(html);
                         w.document.close();
@@ -5331,7 +5286,7 @@
                         setTimeout(() => { w.print(); }, 300);
                 }
 
-        window.generateHandoff = () => {
+        globalThis.generateHandoff = () => {
             const sel = patients.filter(p => selectedPatientIds.has(p.id));
             let t = `UROLOGY HANDOFF\n${new Date().toLocaleDateString()}\nOn-Call: ${document.getElementById('on-call-provider')?.value || 'N/A'}\n${'='.repeat(40)}\n\n`;
             sel.forEach(p => {
@@ -5343,12 +5298,12 @@
             document.getElementById('handoff-modal')?.classList.remove('hidden');
         };
 
-        window.copyHandoff = () => { 
+        globalThis.copyHandoff = () => { 
             const area = document.getElementById('handoff-text-area');
             if (area) { area.select(); document.execCommand('copy'); showToast("Copied"); }
         };
 
-        window.saveOnCallShift = async () => {
+        globalThis.saveOnCallShift = async () => {
             const date = document.getElementById('oc-date').value;
             const provider = document.getElementById('oc-provider').value;
             const hospitalCheckboxes = document.querySelectorAll('.oc-hospital-checkbox:checked');
@@ -5364,15 +5319,15 @@
                     // Update existing
                     existing.provider = provider;
                     existing.hospitals = hospitals;
-                    if (isConnected && typeof window.m365SaveOnCallShift === 'function') {
-                        await window.m365SaveOnCallShift(existing);
+                    if (isConnected && typeof globalThis.m365SaveOnCallShift === 'function') {
+                        await globalThis.m365SaveOnCallShift(existing);
                     }
                 } else {
                     // Create new
                     const newShift = { id: Date.now().toString(), date, provider, hospitals };
                     onCallSchedule.push(newShift);
-                    if (isConnected && typeof window.m365SaveOnCallShift === 'function') {
-                        await window.m365SaveOnCallShift(newShift);
+                    if (isConnected && typeof globalThis.m365SaveOnCallShift === 'function') {
+                        await globalThis.m365SaveOnCallShift(newShift);
                     }
                 }
                 renderOnCallSchedule();
@@ -5380,14 +5335,14 @@
             } catch (err) { console.error("Shift save error:", err); showToast("❌ Save failed"); }
         };
 
-        window.deleteShift = async (id) => { 
+        globalThis.deleteShift = async (id) => { 
             if (confirm("Remove this shift?")) {
                 try {
                     const index = onCallSchedule.findIndex(s => s.id === id);
                     if (index !== -1) {
                         onCallSchedule.splice(index, 1);
-                        if (isConnected && typeof window.m365DeleteOnCallShift === 'function') {
-                            await window.m365DeleteOnCallShift(id);
+                        if (isConnected && typeof globalThis.m365DeleteOnCallShift === 'function') {
+                            await globalThis.m365DeleteOnCallShift(id);
                         }
                         renderOnCallSchedule();
                         showToast("✓ Shift deleted");
@@ -5396,22 +5351,22 @@
             }
         };
 
-        window.updateGlobalSettings = async () => { 
-            if (!isAuthenticated || !window.m365SaveSetting) {
+        globalThis.updateGlobalSettings = async () => { 
+            if (!isAuthenticated || !globalThis.m365SaveSetting) {
                 console.info("Settings update: Local Mode only, changes not persisted to M365");
                 return;
             }
             try {
                 const onCall = document.getElementById('on-call-provider').value;
                 const hospitals = document.getElementById('on-call-hospitals').value;
-                await window.m365SaveSetting('onCall', onCall);
-                await window.m365SaveSetting('hospitals', hospitals);
+                await globalThis.m365SaveSetting('onCall', onCall);
+                await globalThis.m365SaveSetting('hospitals', hospitals);
                 showToast("✓ Settings saved to M365");
             } catch (err) { console.error("Settings update error:", err); showToast("❌ Settings save failed"); }
         };
 
         // CSV IMPORT HANDLER
-        window.handleCSVImport = async (event) => {
+        globalThis.handleCSVImport = async (event) => {
             const file = event.target.files[0];
             if (!file) return;
             
@@ -5445,7 +5400,7 @@
                 
                 // Update hospitals in settings if new ones found
                 if (parsed.hospitals.length > 0) {
-                    const existingHospitals = (globalSettings.hospitals || '').split(',').map(h => h.trim()).filter(h => h);
+                    const existingHospitals = (globalSettings.hospitals || '').split(',').map(h => h.trim()).filter(Boolean);
                     const allHospitals = [...new Set([...existingHospitals, ...parsed.hospitals])];
                     globalSettings.hospitals = allHospitals.join(', ');
                 }
@@ -5461,7 +5416,7 @@
         };
 
         // PREVIEW BULK IMPORT (Parse files, compare with existing, show summary)
-        window.previewBulkImport = async (files) => {
+        globalThis.previewBulkImport = async (files) => {
             const preview = {
                 files: [],
                 totalNewRecords: 0,
@@ -5475,8 +5430,7 @@
             try {
                 showToast(`🔍 Analyzing ${files.length} file(s)...`);
 
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
+                for (const file of files) {
                     const fileName = file.name;
                     let fileOnCall = [];
                     let filePatients = [];
@@ -5495,7 +5449,7 @@
                                     filePatients = filePatients.concat(parsed.patients);
                                     fileHospitals = [...new Set([...fileHospitals, ...parsed.hospitals])];
                                 } catch (sheetErr) {
-                                    console.warn(`Skipped sheet "${sheetName}" in ${fileName}`);
+                                    console.warn(`Skipped sheet "${sheetName}" in ${fileName}:`, sheetErr.message);
                                 }
                             }
                         } else if (fileName.endsWith('.csv')) {
@@ -5503,7 +5457,6 @@
                             const parsed = CSVImporter.parse3Pass(csvText);
                             fileOnCall = parsed.onCall;
                             filePatients = parsed.patients;
-                            fileHospitals = parsed.hospitals;
                         }
 
                         // Analyze: count new vs. duplicates
@@ -5512,7 +5465,6 @@
                         const filePreviewDetails = [];
 
                         filePatients.forEach(p => {
-                            const visitKey = `${p.mrn}|${p.date}`;
                             const isDuplicate = patients.some(existing => existing.mrn === p.mrn && existing.date === p.date);
                             if (isDuplicate) {
                                 duplicatesInFile++;
@@ -5561,10 +5513,9 @@
         };
 
         // SHOW BULK IMPORT PREVIEW MODAL
-        window.showBulkImportPreview = (preview, onConfirm) => {
+        globalThis.showBulkImportPreview = (preview, onConfirm) => {
             const duplicateCount = preview.totalDuplicates;
             const newCount = preview.totalNewRecords;
-            const totalCount = duplicateCount + newCount;
 
             const detailsHtml = preview.files.map(f => `
                 <div class="bg-slate-50 p-3 rounded border border-slate-200 mb-2">
@@ -5604,13 +5555,13 @@
                 </div>
                 <div class="space-y-2">
                     <div class="text-xs font-semibold text-slate-700 mb-3">How to proceed?</div>
-                    <button onclick="window.proceedBulkImport('replace', ${newCount}, ${duplicateCount})" class="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700">
+                    <button onclick="globalThis.proceedBulkImport('replace', ${newCount}, ${duplicateCount})" class="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700">
                         ✓ Import All (${newCount} new + ${duplicateCount} replace)
                     </button>
-                    <button onclick="window.proceedBulkImport('newonly', ${newCount}, ${duplicateCount})" class="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700">
+                    <button onclick="globalThis.proceedBulkImport('newonly', ${newCount}, ${duplicateCount})" class="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700">
                         ✓ Import New Only (${newCount} only, skip ${duplicateCount})
                     </button>
-                    <button onclick="window.closeModal('bulk-preview-modal')" class="w-full px-4 py-2.5 bg-slate-300 text-slate-800 text-sm font-semibold rounded-lg hover:bg-slate-400">
+                    <button onclick="globalThis.closeModal('bulk-preview-modal')" class="w-full px-4 py-2.5 bg-slate-300 text-slate-800 text-sm font-semibold rounded-lg hover:bg-slate-400">
                         ✗ Cancel
                     </button>
                 </div>
@@ -5622,7 +5573,7 @@
         };
 
         // EXECUTE BULK IMPORT with chosen action
-        window.proceedBulkImport = async (action, newCount, dupCount) => {
+        globalThis.proceedBulkImport = async (action, newCount, dupCount) => {
             const files = document.getElementById('csv-file-input').files;
             const modal = document.getElementById('patient-modal');
             modal.style.display = 'none';
@@ -5656,7 +5607,7 @@
                                     filePatients = filePatients.concat(parsed.patients);
                                     fileHospitals = [...new Set([...fileHospitals, ...parsed.hospitals])];
                                 } catch (sheetErr) {
-                                    console.warn(`Skipped sheet "${sheetName}" in ${fileName}`);
+                                    console.warn(`Skipped sheet "${sheetName}" in ${fileName}:`, sheetErr.message);
                                 }
                             }
                         } else if (fileName.endsWith('.csv')) {
@@ -5697,7 +5648,7 @@
 
                         // Update hospitals
                         if (fileHospitals.length > 0) {
-                            const existingHospitals = (globalSettings.hospitals || '').split(',').map(h => h.trim()).filter(h => h);
+                            const existingHospitals = (globalSettings.hospitals || '').split(',').map(h => h.trim()).filter(Boolean);
                             const allHospitals = [...new Set([...existingHospitals, ...fileHospitals])];
                             globalSettings.hospitals = allHospitals.join(', ');
                         }
@@ -5732,13 +5683,13 @@
         };
 
         // BULK IMPORT HANDLER (Multiple files: CSV + XLSX)
-        window.handleBulkImport = async (event) => {
+        globalThis.handleBulkImport = async (event) => {
             const files = event.target.files;
             if (!files || files.length === 0) return;
 
             try {
-                const preview = await window.previewBulkImport(files);
-                window.showBulkImportPreview(preview);
+                const preview = await globalThis.previewBulkImport(files);
+                globalThis.showBulkImportPreview(preview);
             } catch (err) {
                 console.error("Bulk import error:", err);
                 showToast("❌ Failed to analyze files: " + err.message);
@@ -5774,7 +5725,7 @@
                 checkboxes.forEach(cb => {
                     const code = cb.value;
                     const checked = cb.checked;
-                    const isCustomCode = FINDINGS_CUSTOM_CODES.includes(code);
+                    const isCustomCode = FINDINGS_CUSTOM_CODES.has(code);
                     const valueInput = document.querySelector(`textarea.findings-value[data-code="${code}"]`);
                     const dateInput = document.querySelector(`input.findings-date[data-code="${code}"]`);
                     const customPanel = document.querySelector(`.findings-custom-panel[data-code="${code}"]`);
@@ -5840,8 +5791,8 @@
                 input.addEventListener('input', updateSelectedCodes);
             });
             
-            window.autoResizeTextarea = autoResizeTextarea;
-            window.syncFindingsUI = updateSelectedCodes;
+            globalThis.autoResizeTextarea = autoResizeTextarea;
+            globalThis.syncFindingsUI = updateSelectedCodes;
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
@@ -5851,14 +5802,14 @@
                     const modal = document.getElementById('patient-modal');
                     if (modal && !modal.classList.contains('hidden')) {
                         // Call savePatient directly instead of dispatching event to avoid recursion
-                        window.savePatient(e);
+                        globalThis.savePatient(e);
                     }
                 }
                 // Escape to close modal
                 if (e.key === 'Escape') {
                     const modal = document.getElementById('patient-modal');
                     if (modal && !modal.classList.contains('hidden')) {
-                        window.closeModal();
+                        globalThis.closeModal();
                     }
                 }
             });
@@ -5894,13 +5845,13 @@
                 btn.id = 'print-selected-btn';
                 btn.textContent = '🖨️ Print Selected';
                 btn.className = 'ml-2 px-4 py-2 bg-slate-700 text-white text-xs font-bold rounded hover:bg-slate-800 transition-colors';
-                btn.onclick = window.printSelectedPatientRecords;
+                btn.onclick = globalThis.printSelectedPatientRecords;
                 tableHeader.appendChild(btn);
             }
             
             // Ensure setTab is defined before calling it
-            if (typeof window.setTab === 'function') {
-                window.setTab('active');
+            if (typeof globalThis.setTab === 'function') {
+                globalThis.setTab('active');
             } else {
                 console.error('setTab function not defined yet');
             }
@@ -5921,18 +5872,18 @@
                 <h1 class="text-xl font-black tracking-tight truncate">Clinical Rounding List</h1>
             </div>
             <div class="flex gap-2">
-                <button id="m365-login-btn" onclick="window.m365Login && window.m365Login()" class="flex-shrink-0 px-3 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">🔐 Login</button>
+                <button id="m365-login-btn" onclick="globalThis.m365Login && globalThis.m365Login()" class="flex-shrink-0 px-3 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">🔐 Login</button>
                 <button onclick="document.getElementById('csv-file-input').click()" class="flex-shrink-0 px-3 py-2.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700">📥 Import Files</button>
-                <button onclick="window.openModal()" class="flex-shrink-0 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700">+ Add</button>
-                <button onclick="window.toggleAdvancedFilterPanel()" title="Advanced Filters (Ctrl+Shift+F)" class="flex-shrink-0 px-3 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700">🔽 Filters</button>
-                <button onclick="window.toggleAdvancedSearch()" title="Advanced Search (Ctrl+/)" class="flex-shrink-0 px-3 py-2.5 bg-slate-600 text-white text-xs font-bold rounded-lg hover:bg-slate-700">🔍</button>
-                <button onclick="window.toggleSettings()" title="Settings (Ctrl+,)" class="flex-shrink-0 px-3 py-2.5 bg-slate-600 text-white text-xs font-bold rounded-lg hover:bg-slate-700">⚙️</button>
-                <button onclick="window.showShortcutsHelp()" title="Keyboard Shortcuts (Ctrl+?)" class="flex-shrink-0 px-3 py-2.5 bg-slate-600 text-white text-xs font-bold rounded-lg hover:bg-slate-700">?</button>
+                <button onclick="globalThis.openModal()" class="flex-shrink-0 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700">+ Add</button>
+                <button onclick="globalThis.toggleAdvancedFilterPanel()" title="Advanced Filters (Ctrl+Shift+F)" class="flex-shrink-0 px-3 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700">🔽 Filters</button>
+                <button onclick="globalThis.toggleAdvancedSearch()" title="Advanced Search (Ctrl+/)" class="flex-shrink-0 px-3 py-2.5 bg-slate-600 text-white text-xs font-bold rounded-lg hover:bg-slate-700">🔍</button>
+                <button onclick="globalThis.toggleSettings()" title="Settings (Ctrl+,)" class="flex-shrink-0 px-3 py-2.5 bg-slate-600 text-white text-xs font-bold rounded-lg hover:bg-slate-700">⚙️</button>
+                <button onclick="globalThis.showShortcutsHelp()" title="Keyboard Shortcuts (Ctrl+?)" class="flex-shrink-0 px-3 py-2.5 bg-slate-600 text-white text-xs font-bold rounded-lg hover:bg-slate-700">?</button>
             </div>
         </header>
 
         <!-- Hidden CSV File Input -->
-        <input type="file" id="csv-file-input" accept=".csv,.xlsx,.xls" multiple style="display:none;" onchange="window.handleBulkImport(event)">
+        <input type="file" id="csv-file-input" accept=".csv,.xlsx,.xls" multiple style="display:none;" onchange="globalThis.handleBulkImport(event)">
 
         <!-- Offline Indicator Banner -->
         <div id="offline-banner" class="offline-banner">
@@ -5943,24 +5894,24 @@
         <div id="settings-panel" class="settings-panel">
             <div class="settings-header">
                 <h3 class="font-bold text-lg">Settings</h3>
-                <button onclick="window.toggleSettings()" class="text-2xl font-bold text-slate-400 hover:text-slate-600">×</button>
+                <button onclick="globalThis.toggleSettings()" class="text-2xl font-bold text-slate-400 hover:text-slate-600">×</button>
             </div>
             <div class="settings-content">
                 <!-- Theme -->
                 <div class="settings-group">
                     <label class="settings-label">🎨 Theme</label>
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
-                        <input type="radio" name="theme" value="light" checked onchange="window.setTheme('light')"> Light
+                        <input type="radio" name="theme" value="light" checked onchange="globalThis.setTheme('light')"> Light
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="theme" value="dark" onchange="window.setTheme('dark')"> Dark
+                        <input type="radio" name="theme" value="dark" onchange="globalThis.setTheme('dark')"> Dark
                     </label>
                 </div>
                 
                 <!-- Text Size -->
                 <div class="settings-group">
                     <label class="settings-label">📝 Text Size</label>
-                    <input type="range" min="1" max="4" value="1" onchange="window.setTextSize(this.value)" class="w-full">
+                    <input type="range" min="1" max="4" value="1" onchange="globalThis.setTextSize(this.value)" class="w-full">
                     <div class="flex justify-between text-xs text-slate-500 mt-1">
                         <span>Small</span>
                         <span>Large</span>
@@ -5970,7 +5921,7 @@
                 <!-- High Contrast -->
                 <div class="settings-group">
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="high-contrast-toggle" onchange="window.toggleHighContrast(this.checked)"> ⚫ High Contrast
+                        <input type="checkbox" id="high-contrast-toggle" onchange="globalThis.toggleHighContrast(this.checked)"> ⚫ High Contrast
                     </label>
                 </div>
                 
@@ -5978,17 +5929,17 @@
                 <div class="settings-group">
                     <label class="settings-label">👁️ Visible Columns</label>
                     <div class="column-toggle">
-                        <label><input type="checkbox" class="column-vis" value="room" checked onchange="window.updateColumnVisibility()"> Room</label>
-                        <label><input type="checkbox" class="column-vis" value="hospital" checked onchange="window.updateColumnVisibility()"> Hospital</label>
-                        <label><input type="checkbox" class="column-vis" value="findings" checked onchange="window.updateColumnVisibility()"> Findings</label>
-                        <label><input type="checkbox" class="column-vis" value="plan" checked onchange="window.updateColumnVisibility()"> Plan</label>
+                        <label><input type="checkbox" class="column-vis" value="room" checked onchange="globalThis.updateColumnVisibility()"> Room</label>
+                        <label><input type="checkbox" class="column-vis" value="hospital" checked onchange="globalThis.updateColumnVisibility()"> Hospital</label>
+                        <label><input type="checkbox" class="column-vis" value="findings" checked onchange="globalThis.updateColumnVisibility()"> Findings</label>
+                        <label><input type="checkbox" class="column-vis" value="plan" checked onchange="globalThis.updateColumnVisibility()"> Plan</label>
                     </div>
                 </div>
                 
                 <!-- Auto-save Interval -->
                 <div class="settings-group">
                     <label class="settings-label">⏱️ Auto-Save Interval</label>
-                    <select onchange="window.setAutoSaveInterval(this.value)" class="w-full p-2 border border-slate-300 rounded text-sm">
+                    <select onchange="globalThis.setAutoSaveInterval(this.value)" class="w-full p-2 border border-slate-300 rounded text-sm">
                         <option value="5">5 seconds</option>
                         <option value="10" selected>10 seconds</option>
                         <option value="30">30 seconds</option>
@@ -5999,9 +5950,9 @@
                 <!-- Data Management -->
                 <div class="settings-group">
                     <label class="settings-label">💾 Data</label>
-                    <button onclick="window.exportLocalData()" class="w-full p-2 text-left text-sm bg-blue-50 border border-blue-300 rounded hover:bg-blue-100 text-blue-700">📥 Export Local Data</button>
-                    <button onclick="window.importLocalData()" class="w-full p-2 text-left text-sm bg-green-50 border border-green-300 rounded hover:bg-green-100 text-green-700 mt-2">📤 Import Local Data</button>
-                    <button onclick="if(confirm('Clear all local data? This cannot be undone.')) window.clearAllData()" class="w-full p-2 text-left text-sm bg-red-50 border border-red-300 rounded hover:bg-red-100 text-red-700 mt-2">🗑️ Clear All Data</button>
+                    <button onclick="globalThis.exportLocalData()" class="w-full p-2 text-left text-sm bg-blue-50 border border-blue-300 rounded hover:bg-blue-100 text-blue-700">📥 Export Local Data</button>
+                    <button onclick="globalThis.importLocalData()" class="w-full p-2 text-left text-sm bg-green-50 border border-green-300 rounded hover:bg-green-100 text-green-700 mt-2">📤 Import Local Data</button>
+                    <button onclick="if(confirm('Clear all local data? This cannot be undone.')) globalThis.clearAllData()" class="w-full p-2 text-left text-sm bg-red-50 border border-red-300 rounded hover:bg-red-100 text-red-700 mt-2">🗑️ Clear All Data</button>
                 </div>
                 
                 <!-- About -->
@@ -6065,7 +6016,7 @@
                     <span>Close any dialog/menu</span>
                 </div>
                 
-                <button onclick="window.closeShortcutsHelp()" class="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700">Got It</button>
+                <button onclick="globalThis.closeShortcutsHelp()" class="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700">Got It</button>
             </div>
         </div>
 
@@ -6073,17 +6024,17 @@
         <div id="advanced-filter-panel" class="advanced-filter-panel">
             <div class="filter-header">
                 <h3 class="font-bold text-lg">Advanced Filters</h3>
-                <button onclick="window.toggleAdvancedFilterPanel()" class="text-2xl font-bold text-slate-400 hover:text-slate-600">×</button>
+                <button onclick="globalThis.toggleAdvancedFilterPanel()" class="text-2xl font-bold text-slate-400 hover:text-slate-600">×</button>
             </div>
             <div class="filter-content">
                 <!-- Filter Presets -->
                 <div class="filter-group">
                     <label class="filter-label">⭐ Quick Presets</label>
                     <div class="filter-presets">
-                        <button onclick="window.loadFilterPreset('morning')" class="filter-preset-btn">🌅 Morning Rounds</button>
-                        <button onclick="window.loadFilterPreset('postop')" class="filter-preset-btn">⭐ Post-Op Check</button>
-                        <button onclick="window.loadFilterPreset('statonly')" class="filter-preset-btn">🔴 STAT Cases</button>
-                        <button onclick="window.loadFilterPreset('pending')" class="filter-preset-btn">📋 Pending Tests</button>
+                        <button onclick="globalThis.loadFilterPreset('morning')" class="filter-preset-btn">🌅 Morning Rounds</button>
+                        <button onclick="globalThis.loadFilterPreset('postop')" class="filter-preset-btn">⭐ Post-Op Check</button>
+                        <button onclick="globalThis.loadFilterPreset('statonly')" class="filter-preset-btn">🔴 STAT Cases</button>
+                        <button onclick="globalThis.loadFilterPreset('pending')" class="filter-preset-btn">📋 Pending Tests</button>
                     </div>
                 </div>
 
@@ -6091,13 +6042,13 @@
                 <div class="filter-group">
                     <label class="filter-label">🏥 Procedure Categories</label>
                     <div class="procedure-category-buttons">
-                        <button onclick="window.filterByProcedure('cysto')" class="procedure-btn">Cysto</button>
-                        <button onclick="window.filterByProcedure('stent')" class="procedure-btn">Stent</button>
-                        <button onclick="window.filterByProcedure('turbt')" class="procedure-btn">TURBT</button>
-                        <button onclick="window.filterByProcedure('laser')" class="procedure-btn">Laser</button>
-                        <button onclick="window.filterByProcedure('robotic')" class="procedure-btn">Robotic</button>
-                        <button onclick="window.filterByProcedure('biopsy')" class="procedure-btn">Biopsy</button>
-                        <button onclick="window.filterByProcedure('all')" class="procedure-btn">All Procedures</button>
+                        <button onclick="globalThis.filterByProcedure('cysto')" class="procedure-btn">Cysto</button>
+                        <button onclick="globalThis.filterByProcedure('stent')" class="procedure-btn">Stent</button>
+                        <button onclick="globalThis.filterByProcedure('turbt')" class="procedure-btn">TURBT</button>
+                        <button onclick="globalThis.filterByProcedure('laser')" class="procedure-btn">Laser</button>
+                        <button onclick="globalThis.filterByProcedure('robotic')" class="procedure-btn">Robotic</button>
+                        <button onclick="globalThis.filterByProcedure('biopsy')" class="procedure-btn">Biopsy</button>
+                        <button onclick="globalThis.filterByProcedure('all')" class="procedure-btn">All Procedures</button>
                     </div>
                 </div>
 
@@ -6163,8 +6114,8 @@
             </div>
 
             <div class="filter-actions">
-                <button class="filter-apply" onclick="window.applyAdvancedFilters()">✓ Apply Filters</button>
-                <button class="filter-reset" onclick="window.resetAdvancedFilters()">↻ Reset</button>
+                <button class="filter-apply" onclick="globalThis.applyAdvancedFilters()">✓ Apply Filters</button>
+                <button class="filter-reset" onclick="globalThis.resetAdvancedFilters()">↻ Reset</button>
             </div>
         </div>
 
@@ -6196,17 +6147,17 @@
 
         <!-- Tabs -->
         <nav class="px-2 py-2 bg-white border-b border-slate-100 flex gap-1 flex-shrink-0 overflow-x-auto" role="tablist" aria-label="Main Navigation">
-            <button id="tab-active-btn" onclick="window.setTab('active')" class="flex-shrink-0 px-2 py-2 rounded bg-blue-600 text-white font-bold text-xs uppercase" role="tab" aria-selected="true" aria-controls="active-panel">Census</button>
-            <button id="tab-procedures-btn" onclick="window.setTab('procedures')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="procedures-panel">Surgical</button>
-            <button id="tab-calendar-btn" onclick="window.setTab('calendar')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="calendar-panel">Calendar</button>
-            <button id="tab-oncall-btn" onclick="window.setTab('oncall')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="oncall-panel">Staffing</button>
-            <button id="tab-archive-btn" onclick="window.setTab('archive')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="archive-panel">Archive</button>
-            <button id="tab-timeline-btn" onclick="window.setTab('timeline')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="timeline-panel">Timeline</button>
-            <button id="tab-analytics-btn" onclick="window.setTab('analytics')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="analytics-panel">Analytics</button>
-            <button id="tab-reports-btn" onclick="window.setTab('reports')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="reports-panel">Reports</button>
-            <button id="tab-audit-btn" onclick="window.setTab('audit')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="audit-panel">Audit</button>
-            <button id="tab-procedure-log-btn" onclick="window.setTab('procedure-log')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="procedure-log-panel">Procedures</button>
-            <button id="tab-shift-report-btn" onclick="window.setTab('shift-report')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="shift-report-panel">Shifts</button>
+            <button id="tab-active-btn" onclick="globalThis.setTab('active')" class="flex-shrink-0 px-2 py-2 rounded bg-blue-600 text-white font-bold text-xs uppercase" role="tab" aria-selected="true" aria-controls="active-panel">Census</button>
+            <button id="tab-procedures-btn" onclick="globalThis.setTab('procedures')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="procedures-panel">Surgical</button>
+            <button id="tab-calendar-btn" onclick="globalThis.setTab('calendar')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="calendar-panel">Calendar</button>
+            <button id="tab-oncall-btn" onclick="globalThis.setTab('oncall')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="oncall-panel">Staffing</button>
+            <button id="tab-archive-btn" onclick="globalThis.setTab('archive')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="archive-panel">Archive</button>
+            <button id="tab-timeline-btn" onclick="globalThis.setTab('timeline')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="timeline-panel">Timeline</button>
+            <button id="tab-analytics-btn" onclick="globalThis.setTab('analytics')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="analytics-panel">Analytics</button>
+            <button id="tab-reports-btn" onclick="globalThis.setTab('reports')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="reports-panel">Reports</button>
+            <button id="tab-audit-btn" onclick="globalThis.setTab('audit')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="audit-panel">Audit</button>
+            <button id="tab-procedure-log-btn" onclick="globalThis.setTab('procedure-log')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="procedure-log-panel">Procedures</button>
+            <button id="tab-shift-report-btn" onclick="globalThis.setTab('shift-report')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="shift-report-panel">Shifts</button>
         </nav>
 
         <!-- Content Area -->
@@ -6214,23 +6165,23 @@
             <!-- Advanced Search Panel -->
             <div id="advanced-search" class="advanced-search">
                 <label class="text-xs font-bold text-slate-600 block mb-1">🔍 Search</label>
-                <input type="text" id="search-box" class="search-box" placeholder="Search by name, MRN, room, hospital, or findings..." onkeyup="window.performSearch(this.value)">
+                <input type="text" id="search-box" class="search-box" placeholder="Search by name, MRN, room, hospital, or findings..." onkeyup="globalThis.performSearch(this.value)">
                 <div class="flex gap-2 mt-2 flex-wrap">
-                    <button onclick="window.setQuickFilter('stat')" class="px-2 py-1 bg-red-100 border border-red-300 text-red-700 text-xs rounded hover:bg-red-200">STAT Only 🔴</button>
-                    <button onclick="window.setQuickFilter('procedures')" class="px-2 py-1 bg-blue-100 border border-blue-300 text-blue-700 text-xs rounded hover:bg-blue-200">Procedures 🔵</button>
-                    <button onclick="window.setQuickFilter('inprogress')" class="px-2 py-1 bg-yellow-100 border border-yellow-300 text-yellow-700 text-xs rounded hover:bg-yellow-200">In Progress ⚡</button>
-                    <button onclick="window.setQuickFilter('pending')" class="px-2 py-1 bg-orange-100 border border-orange-300 text-orange-700 text-xs rounded hover:bg-orange-200">Pending Tests 📋</button>
-                    <button onclick="window.clearSearch()" class="px-2 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">Clear</button>
+                    <button onclick="globalThis.setQuickFilter('stat')" class="px-2 py-1 bg-red-100 border border-red-300 text-red-700 text-xs rounded hover:bg-red-200">STAT Only 🔴</button>
+                    <button onclick="globalThis.setQuickFilter('procedures')" class="px-2 py-1 bg-blue-100 border border-blue-300 text-blue-700 text-xs rounded hover:bg-blue-200">Procedures 🔵</button>
+                    <button onclick="globalThis.setQuickFilter('inprogress')" class="px-2 py-1 bg-yellow-100 border border-yellow-300 text-yellow-700 text-xs rounded hover:bg-yellow-200">In Progress ⚡</button>
+                    <button onclick="globalThis.setQuickFilter('pending')" class="px-2 py-1 bg-orange-100 border border-orange-300 text-orange-700 text-xs rounded hover:bg-orange-200">Pending Tests 📋</button>
+                    <button onclick="globalThis.clearSearch()" class="px-2 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">Clear</button>
                 </div>
             </div>
 
             <!-- Batch Operations Bar -->
             <div id="batch-operations" class="batch-operations">
                 <div class="batch-count" id="batch-count">0 selected</div>
-                <button onclick="window.batchChangeStatus()" class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Change Status</button>
-                <button onclick="window.batchArchiveSelected()" class="px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded hover:bg-amber-700">Archive</button>
-                <button onclick="window.batchDeleteSelected()" class="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700">Delete</button>
-                <button onclick="window.cancelBatchOp()" class="px-3 py-1 bg-slate-400 text-white text-xs font-bold rounded hover:bg-slate-500 ml-auto">Cancel</button>
+                <button onclick="globalThis.batchChangeStatus()" class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Change Status</button>
+                <button onclick="globalThis.batchArchiveSelected()" class="px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded hover:bg-amber-700">Archive</button>
+                <button onclick="globalThis.batchDeleteSelected()" class="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700">Delete</button>
+                <button onclick="globalThis.cancelBatchOp()" class="px-3 py-1 bg-slate-400 text-white text-xs font-bold rounded hover:bg-slate-500 ml-auto">Cancel</button>
             </div>
 
             <div id="table-section" class="h-full">
@@ -6252,9 +6203,9 @@
 
                 <!-- View Toggle Buttons -->
                 <div class="view-toggle">
-                    <button class="view-btn active" onclick="window.setViewMode('table')">📊 Table View</button>
-                    <button class="view-btn" onclick="window.setViewMode('card')">🃏 Card View</button>
-                    <button class="view-btn" onclick="window.setViewMode('grouped')">🏥 By Hospital</button>
+                    <button class="view-btn active" onclick="globalThis.setViewMode('table')">📊 Table View</button>
+                    <button class="view-btn" onclick="globalThis.setViewMode('card')">🃏 Card View</button>
+                    <button class="view-btn" onclick="globalThis.setViewMode('grouped')">🏥 By Hospital</button>
                 </div>
 
                 <!-- Filter Controls -->
@@ -6286,8 +6237,8 @@
                         <input type="text" id="filter-patient" placeholder="Name or MRN" class="p-2 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div class="flex gap-2 items-end">
-                        <button onclick="window.applyFilters()" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors">Apply</button>
-                        <button onclick="window.clearFilters()" class="px-4 py-2 bg-slate-300 text-slate-700 text-xs font-bold rounded hover:bg-slate-400 transition-colors">Clear</button>
+                        <button onclick="globalThis.applyFilters()" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors">Apply</button>
+                        <button onclick="globalThis.clearFilters()" class="px-4 py-2 bg-slate-300 text-slate-700 text-xs font-bold rounded hover:bg-slate-400 transition-colors">Clear</button>
                     </div>
                 </div>
                 
@@ -6295,7 +6246,7 @@
                     <table class="w-full border-collapse text-sm h-full">
                         <thead class="bg-slate-100 sticky top-0 z-10 border-b border-slate-200">
                             <tr>
-                                <th class="p-3 w-12"><input type="checkbox" onchange="window.toggleAllSelection(event)" class="w-5 h-5 rounded cursor-pointer"></th>
+                                <th class="p-3 w-12"><input type="checkbox" onchange="globalThis.toggleAllSelection(event)" class="w-5 h-5 rounded cursor-pointer"></th>
                                 <th class="p-3 text-left font-bold text-slate-700 sortable" data-sort-column="room">Room <span class="sort-indicator"></span></th>
                                 <th class="p-3 text-left font-bold text-slate-700 sortable" data-sort-column="hospital">Hospital <span class="sort-indicator"></span></th>
                                 <th class="p-3 text-left font-bold text-slate-700 sortable" data-sort-column="name">Patient <span class="sort-indicator"></span></th>
@@ -6318,9 +6269,9 @@
             <div id="calendar-section" class="hidden h-full p-4">
                 <div class="bg-white rounded-lg p-4 h-full flex flex-col">
                     <div class="flex items-center justify-between mb-4 flex-shrink-0">
-                        <button onclick="window.prevMonth()" class="px-3 py-2 bg-slate-200 rounded font-bold text-sm">← Prev</button>
+                        <button onclick="globalThis.prevMonth()" class="px-3 py-2 bg-slate-200 rounded font-bold text-sm">← Prev</button>
                         <h2 id="cal-month-header" class="text-lg font-black">Month</h2>
-                        <button onclick="window.nextMonth()" class="px-3 py-2 bg-slate-200 rounded font-bold text-sm">Next →</button>
+                        <button onclick="globalThis.nextMonth()" class="px-3 py-2 bg-slate-200 rounded font-bold text-sm">Next →</button>
                     </div>
                     <div id="cal-grid" class="grid grid-cols-7 gap-1 flex-1 overflow-y-auto bg-slate-100 p-2 rounded-lg text-xs"></div>
                 </div>
@@ -6374,7 +6325,7 @@
                             </div>
                             <p class="text-xs text-slate-500 mt-1">Check all that apply</p>
                         </div>
-                        <button onclick="window.saveOnCallShift()" class="w-full p-3 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition-colors">Save Shift</button>
+                        <button onclick="globalThis.saveOnCallShift()" class="w-full p-3 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition-colors">Save Shift</button>
                     </div>
                     <div id="oc-schedule-list" class="flex-1 overflow-y-auto space-y-2"></div>
                 </div>
@@ -6387,7 +6338,7 @@
                     <div class="grid grid-cols-3 gap-2 mb-4 flex-shrink-0">
                         <input type="text" id="timeline-filter-mrn" placeholder="Filter by MRN" class="p-2 text-xs border rounded focus:ring-2 focus:ring-blue-500" />
                         <input type="date" id="timeline-filter-from" placeholder="From" class="p-2 text-xs border rounded focus:ring-2 focus:ring-blue-500" />
-                        <button onclick="window.loadPatientTimeline()" class="p-2 px-4 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Load Timeline</button>
+                        <button onclick="globalThis.loadPatientTimeline()" class="p-2 px-4 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Load Timeline</button>
                     </div>
                     <div id="timeline-content" class="timeline-events"></div>
                 </div>
@@ -6422,7 +6373,7 @@
                                 <option value="AWC">AWC</option>
                                 <option value="BTMC">BTMC</option>
                             </select>
-                            <button onclick="window.generatePDFReport()" class="p-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Generate PDF</button>
+                            <button onclick="globalThis.generatePDFReport()" class="p-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Generate PDF</button>
                         </div>
                     </div>
                     <div id="pdf-preview" class="pdf-preview">
@@ -6447,7 +6398,7 @@
                             </select>
                             <input type="date" id="audit-filter-from" placeholder="From" class="p-2 text-xs border rounded" />
                             <input type="date" id="audit-filter-to" placeholder="To" class="p-2 text-xs border rounded" />
-                            <button onclick="window.loadAuditLogs()" class="p-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Load Logs</button>
+                            <button onclick="globalThis.loadAuditLogs()" class="p-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Load Logs</button>
                         </div>
                     </div>
                     <div id="audit-content" class="overflow-x-auto">
@@ -6473,12 +6424,12 @@
                     <div class="text-2xl font-bold mb-4">🔪 Surgical Procedures</div>
                     <div class="procedure-log">
                         <div class="procedure-log-filter mb-4 flex-shrink-0">
-                            <button onclick="window.filterProcedures('all')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-blue-600 text-white">All</button>
-                            <button onclick="window.filterProcedures('cysto')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Cysto</button>
-                            <button onclick="window.filterProcedures('stent')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Stent</button>
-                            <button onclick="window.filterProcedures('turbt')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">TURBT</button>
-                            <button onclick="window.filterProcedures('robotic')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Robotic</button>
-                            <button onclick="window.filterProcedures('laser')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Laser</button>
+                            <button onclick="globalThis.filterProcedures('all')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-blue-600 text-white">All</button>
+                            <button onclick="globalThis.filterProcedures('cysto')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Cysto</button>
+                            <button onclick="globalThis.filterProcedures('stent')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Stent</button>
+                            <button onclick="globalThis.filterProcedures('turbt')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">TURBT</button>
+                            <button onclick="globalThis.filterProcedures('robotic')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Robotic</button>
+                            <button onclick="globalThis.filterProcedures('laser')" class="procedure-type-filter px-3 py-2 rounded text-xs font-bold bg-slate-200 text-slate-700">Laser</button>
                         </div>
                         <div id="procedure-log-content"></div>
                     </div>
@@ -6494,7 +6445,7 @@
                             <input type="date" id="shift-report-date" placeholder="Report Date" class="p-2 text-xs border rounded" />
                             <input type="time" id="shift-start-time" placeholder="Shift Start" class="p-2 text-xs border rounded" />
                             <input type="time" id="shift-end-time" placeholder="Shift End" class="p-2 text-xs border rounded" />
-                            <button onclick="window.generateShiftReport()" class="p-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Generate Report</button>
+                            <button onclick="globalThis.generateShiftReport()" class="p-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Generate Report</button>
                         </div>
                     </div>
                     <div id="shift-report-content"></div>
@@ -6504,16 +6455,16 @@
 
         <!-- Footer -->
         <div class="border-t border-slate-200 px-3 py-2 bg-white flex gap-2 flex-shrink-0">
-            <button id="handoff-generate-btn" disabled onclick="window.generateHandoff()" class="flex-1 px-3 py-2.5 bg-slate-900 text-white text-xs font-bold rounded disabled:opacity-30">Handoff</button>
+            <button id="handoff-generate-btn" disabled onclick="globalThis.generateHandoff()" class="flex-1 px-3 py-2.5 bg-slate-900 text-white text-xs font-bold rounded disabled:opacity-30">Handoff</button>
         </div>
     </div>
 
     <!-- Modals -->
     <div id="handoff-modal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-end md:items-center justify-center p-4">
         <div class="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
-            <div class="p-4 border-b flex justify-between items-center flex-shrink-0"><h2 class="font-bold">Team Handoff</h2><button onclick="window.closeHandoffModal()" class="text-2xl">×</button></div>
+            <div class="p-4 border-b flex justify-between items-center flex-shrink-0"><h2 class="font-bold">Team Handoff</h2><button onclick="globalThis.closeHandoffModal()" class="text-2xl">×</button></div>
             <textarea id="handoff-text-area" readonly class="flex-1 p-4 font-mono text-xs resize-none overflow-y-auto"></textarea>
-            <div class="p-4 border-t flex gap-2 flex-shrink-0"><button onclick="window.copyHandoff()" class="flex-1 p-3 bg-blue-600 text-white font-bold rounded-lg">Copy</button></div>
+            <div class="p-4 border-t flex gap-2 flex-shrink-0"><button onclick="globalThis.copyHandoff()" class="flex-1 p-3 bg-blue-600 text-white font-bold rounded-lg">Copy</button></div>
         </div>
     </div>
 
@@ -6524,10 +6475,10 @@
                     <h2 class="text-lg font-bold">Record Entry</h2>
                     <p class="text-xs text-slate-500 mt-0.5">💡 Press Enter or Ctrl+S to save • Esc to close</p>
                 </div>
-                <button onclick="window.closeModal()" class="text-2xl">×</button>
+                <button onclick="globalThis.closeModal()" class="text-2xl">×</button>
             </div>
             
-            <form id="patient-form" novalidate onsubmit="return window.savePatient(event);" class="flex-1 overflow-y-auto flex flex-col min-h-0">
+            <form id="patient-form" novalidate onsubmit="return globalThis.savePatient(event);" class="flex-1 overflow-y-auto flex flex-col min-h-0">
                 <input type="hidden" id="edit-id">
                 <input type="hidden" id="f-visit-time">
                 <input type="hidden" id="f-visit-key">
@@ -6915,7 +6866,7 @@
                     </div>
                     <div class="flex flex-col gap-2 md:flex-row md:items-center">
                         <input id="patient-files-input" type="file" multiple class="w-full text-xs" />
-                        <button id="patient-files-upload" type="button" onclick="window.uploadPatientFiles()" class="px-3 py-2 text-xs font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Upload</button>
+                        <button id="patient-files-upload" type="button" onclick="globalThis.uploadPatientFiles()" class="px-3 py-2 text-xs font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Upload</button>
                     </div>
                     <div id="patient-files-list" class="space-y-2 text-xs text-slate-600">
                         <div class="text-slate-400">No files uploaded.</div>
@@ -6926,9 +6877,9 @@
 
             <div class="flex-shrink-0 relative">
                 <div class="flex gap-2 p-3 border-t border-slate-200 bg-slate-50">
-                    <button id="modal-edit-btn" type="button" onclick="window.enableModalEdit()" class="hidden flex-1 px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700 transition-colors">Edit</button>
-                    <button id="modal-archive-btn" type="button" onclick="window.archiveFromModal()" class="hidden flex-1 px-4 py-2 bg-slate-700 text-white font-bold text-xs rounded hover:bg-slate-800 transition-colors">Archive</button>
-                    <button id="modal-delete-btn" type="button" onclick="window.deleteFromModal()" class="hidden flex-1 px-4 py-2 bg-red-600 text-white font-bold text-xs rounded hover:bg-red-700 transition-colors">Delete</button>
+                    <button id="modal-edit-btn" type="button" onclick="globalThis.enableModalEdit()" class="hidden flex-1 px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700 transition-colors">Edit</button>
+                    <button id="modal-archive-btn" type="button" onclick="globalThis.archiveFromModal()" class="hidden flex-1 px-4 py-2 bg-slate-700 text-white font-bold text-xs rounded hover:bg-slate-800 transition-colors">Archive</button>
+                    <button id="modal-delete-btn" type="button" onclick="globalThis.deleteFromModal()" class="hidden flex-1 px-4 py-2 bg-red-600 text-white font-bold text-xs rounded hover:bg-red-700 transition-colors">Delete</button>
                 </div>
                 <button id="save-button" type="submit" form="patient-form" class="w-full p-4 bg-blue-600 text-white font-bold active:bg-blue-700 hover:bg-blue-700 transition-colors cursor-pointer select-none min-h-[56px] flex items-center justify-center border-t border-blue-700 gap-2 group" title="Save record (Ctrl+S or Enter)">
                     <span>Save Record</span>
@@ -6944,7 +6895,7 @@
     <script>
         // ========== Phase 0 Property Tests: Policy Enforcement ==========
         // Property 1: MFA Enforcement for Financial Operations
-        window.testMFAEnforcement = () => {
+        globalThis.testMFAEnforcement = () => {
             try {
                 ComplianceEngine.enforce('mfa_for_financial', { action: 'financial', mfaVerified: false });
                 return { pass: false, msg: 'MFA should be required in hipaa_strict/sox_strict modes' };
@@ -6954,7 +6905,7 @@
         };
 
         // Property 17: BAA Requirement in Strict Mode
-        window.testBAARequirement = () => {
+        globalThis.testBAARequirement = () => {
             try {
                 ComplianceEngine.enforce('baa_requirement', { baaAcknowledged: false });
                 return { pass: false, msg: 'BAA should be required in hipaa_strict/sox_strict modes' };
@@ -6964,7 +6915,7 @@
         };
 
         // Property 19: Financial Dual Approval
-        window.testFinancialDualApproval = () => {
+        globalThis.testFinancialDualApproval = () => {
             try {
                 ComplianceEngine.enforce('dual_approval', { action: 'financial', approvals: ['user1'] });
                 return { pass: false, msg: 'Dual approval should be required for financial changes in sox_strict mode' };
@@ -6974,11 +6925,11 @@
         };
 
         // Compliance test runner
-        window.runComplianceTests = () => {
+        globalThis.runComplianceTests = () => {
             const tests = [
-                { name: 'Property 1: MFA Enforcement', fn: window.testMFAEnforcement },
-                { name: 'Property 17: BAA Requirement', fn: window.testBAARequirement },
-                { name: 'Property 19: Financial Dual Approval', fn: window.testFinancialDualApproval }
+                { name: 'Property 1: MFA Enforcement', fn: globalThis.testMFAEnforcement },
+                { name: 'Property 17: BAA Requirement', fn: globalThis.testBAARequirement },
+                { name: 'Property 19: Financial Dual Approval', fn: globalThis.testFinancialDualApproval }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -6990,7 +6941,7 @@
 
         // ========== Phase 1 Property Tests: Access Control ==========
         // Property 2: Session Timeout Consistency
-        window.testSessionTimeoutConsistency = () => {
+        globalThis.testSessionTimeoutConsistency = () => {
             try {
                 const sessionId = SessionManager.createSession('test-user');
                 const validation1 = SessionManager.validateSession(sessionId);
@@ -7005,7 +6956,7 @@
         };
 
         // Property 3: Role-Based Access Control
-        window.testRoleBasedAccessControl = () => {
+        globalThis.testRoleBasedAccessControl = () => {
             try {
                 RBACEngine.assignRole('clinician-1', 'clinician');
                 RBACEngine.assignRole('billing-1', 'billing');
@@ -7027,7 +6978,7 @@
         };
 
         // Property 4: Unauthorized Access Denial and Logging
-        window.testUnauthorizedAccessLogging = () => {
+        globalThis.testUnauthorizedAccessLogging = () => {
             try {
                 RBACEngine.assignRole('clinician-2', 'clinician');
                 AuditLogger.clearLogs();
@@ -7053,11 +7004,11 @@
         };
 
         // Access control test runner
-        window.runAccessControlTests = () => {
+        globalThis.runAccessControlTests = () => {
             const tests = [
-                { name: 'Property 2: Session Timeout Consistency', fn: window.testSessionTimeoutConsistency },
-                { name: 'Property 3: Role-Based Access Control', fn: window.testRoleBasedAccessControl },
-                { name: 'Property 4: Unauthorized Access Denial and Logging', fn: window.testUnauthorizedAccessLogging }
+                { name: 'Property 2: Session Timeout Consistency', fn: globalThis.testSessionTimeoutConsistency },
+                { name: 'Property 3: Role-Based Access Control', fn: globalThis.testRoleBasedAccessControl },
+                { name: 'Property 4: Unauthorized Access Denial and Logging', fn: globalThis.testUnauthorizedAccessLogging }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -7069,7 +7020,7 @@
 
         // ========== Phase 2 Property Tests: Cryptography & Transport ==========
         // Property 5: Data Encryption at Rest
-        window.testDataEncryptionAtRest = () => {
+        globalThis.testDataEncryptionAtRest = () => {
             try {
                 const samplePatient = {
                     name: 'John Doe',
@@ -7108,7 +7059,7 @@
         };
 
         // Property 6: TLS Communication Security
-        window.testTLSCommunicationSecurity = () => {
+        globalThis.testTLSCommunicationSecurity = () => {
             try {
                 const tlsStatus = TransportSecurity.verifyTLSConnection();
                 
@@ -7132,7 +7083,7 @@
         };
 
         // Property 7: Key Management Security
-        window.testKeyManagementSecurity = () => {
+        globalThis.testKeyManagementSecurity = () => {
             try {
                 const keyId = 'master-key-' + Date.now();
                 KeyManagementService.generateKey(keyId);
@@ -7166,11 +7117,11 @@
         };
 
         // Data protection test runner
-        window.runDataProtectionTests = () => {
+        globalThis.runDataProtectionTests = () => {
             const tests = [
-                { name: 'Property 5: Data Encryption at Rest', fn: window.testDataEncryptionAtRest },
-                { name: 'Property 6: TLS Communication Security', fn: window.testTLSCommunicationSecurity },
-                { name: 'Property 7: Key Management Security', fn: window.testKeyManagementSecurity }
+                { name: 'Property 5: Data Encryption at Rest', fn: globalThis.testDataEncryptionAtRest },
+                { name: 'Property 6: TLS Communication Security', fn: globalThis.testTLSCommunicationSecurity },
+                { name: 'Property 7: Key Management Security', fn: globalThis.testKeyManagementSecurity }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -7635,7 +7586,7 @@
                 },
                 getResponsiveBreakpoint() {
                     if (typeof window === 'undefined') return 'desktop';
-                    const width = window.innerWidth;
+                    const width = globalThis.innerWidth;
                     if (width < 640) return 'mobile-sm';
                     if (width < 768) return 'mobile-lg';
                     if (width < 1024) return 'tablet';
@@ -7752,7 +7703,7 @@
 
         // ========== Phase 3 Property Tests: Audit Logging ==========
         // Property 8: Comprehensive Audit Logging
-        window.testComprehensiveAuditLogging = () => {
+        globalThis.testComprehensiveAuditLogging = () => {
             try {
                 AuditLogger.clearLogs();
                 AuditLogger.clearImmutableLogs();
@@ -7799,7 +7750,7 @@
         };
 
         // Property 9: Audit Log Immutability and Retention
-        window.testAuditLogImmutabilityAndRetention = () => {
+        globalThis.testAuditLogImmutabilityAndRetention = () => {
             try {
                 AuditLogger.clearLogs();
                 AuditLogger.clearImmutableLogs();
@@ -7854,10 +7805,10 @@
         };
 
         // Audit logging test runner
-        window.runAuditLoggingTests = () => {
+        globalThis.runAuditLoggingTests = () => {
             const tests = [
-                { name: 'Property 8: Comprehensive Audit Logging', fn: window.testComprehensiveAuditLogging },
-                { name: 'Property 9: Audit Log Immutability and Retention', fn: window.testAuditLogImmutabilityAndRetention }
+                { name: 'Property 8: Comprehensive Audit Logging', fn: globalThis.testComprehensiveAuditLogging },
+                { name: 'Property 9: Audit Log Immutability and Retention', fn: globalThis.testAuditLogImmutabilityAndRetention }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -7869,7 +7820,7 @@
 
         // ========== Phase 4 Property Tests: Data Lifecycle & Exports ==========
         // Property 10: Data Retention Metadata
-        window.testDataRetentionMetadata = () => {
+        globalThis.testDataRetentionMetadata = () => {
             try {
                 const patientId = 'test-patient-' + Date.now();
                 
@@ -7916,7 +7867,7 @@
         };
 
         // Property 11: External Export Security
-        window.testExternalExportSecurity = async () => {
+        globalThis.testExternalExportSecurity = async () => {
             try {
                 const userId = 'test-user-export';
                 const patientIds = ['patient1', 'patient2'];
@@ -7966,7 +7917,7 @@
         };
 
         // Property 12: Export Policy Enforcement
-        window.testExportPolicyEnforcement = async () => {
+        globalThis.testExportPolicyEnforcement = async () => {
             try {
                 const userId = 'test-user-policy';
                 const patientIds = ['patient1', 'patient2'];
@@ -8015,11 +7966,11 @@
         };
 
         // Data lifecycle test runner
-        window.runDataLifecycleTests = () => {
+        globalThis.runDataLifecycleTests = () => {
             const tests = [
-                { name: 'Property 10: Data Retention Metadata', fn: window.testDataRetentionMetadata },
-                { name: 'Property 11: External Export Security', fn: window.testExternalExportSecurity },
-                { name: 'Property 12: Export Policy Enforcement', fn: window.testExportPolicyEnforcement }
+                { name: 'Property 10: Data Retention Metadata', fn: globalThis.testDataRetentionMetadata },
+                { name: 'Property 11: External Export Security', fn: globalThis.testExternalExportSecurity },
+                { name: 'Property 12: Export Policy Enforcement', fn: globalThis.testExportPolicyEnforcement }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -8031,7 +7982,7 @@
 
         // ========== Phase 5 Property Tests: Monitoring & Incident Handling ==========
         // Property 13: Anomaly Detection Rules
-        window.testAnomalyDetectionRules = () => {
+        globalThis.testAnomalyDetectionRules = () => {
             try {
                 AnomalyDetector.resetStats();
                 const now = new Date();
@@ -8088,7 +8039,7 @@
         };
 
         // Property 14: Incident Alert Generation
-        window.testIncidentAlertGeneration = () => {
+        globalThis.testIncidentAlertGeneration = () => {
             try {
                 IncidentManager.resetIncidents();
                 AnomalyDetector.resetStats();
@@ -8153,10 +8104,10 @@
         };
 
         // Monitoring test runner
-        window.runMonitoringTests = () => {
+        globalThis.runMonitoringTests = () => {
             const tests = [
-                { name: 'Property 13: Anomaly Detection Rules', fn: window.testAnomalyDetectionRules },
-                { name: 'Property 14: Incident Alert Generation', fn: window.testIncidentAlertGeneration }
+                { name: 'Property 13: Anomaly Detection Rules', fn: globalThis.testAnomalyDetectionRules },
+                { name: 'Property 14: Incident Alert Generation', fn: globalThis.testIncidentAlertGeneration }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -8168,7 +8119,7 @@
 
         // ========== Phase 6 Property Tests: Privacy & Data Minimization ==========
         // Property 15: Data Minimization Enforcement
-        window.testDataMinimizationEnforcement = () => {
+        globalThis.testDataMinimizationEnforcement = () => {
             try {
                 PrivacyControlsEngine.resetLogs();
                 
@@ -8207,7 +8158,7 @@
         };
 
         // Property 16: Field Masking and Reveal Logging
-        window.testFieldMaskingAndRevealLogging = () => {
+        globalThis.testFieldMaskingAndRevealLogging = () => {
             try {
                 PrivacyControlsEngine.resetLogs();
                 
@@ -8266,10 +8217,10 @@
         };
 
         // Privacy test runner
-        window.runPrivacyTests = () => {
+        globalThis.runPrivacyTests = () => {
             const tests = [
-                { name: 'Property 15: Data Minimization Enforcement', fn: window.testDataMinimizationEnforcement },
-                { name: 'Property 16: Field Masking and Reveal Logging', fn: window.testFieldMaskingAndRevealLogging }
+                { name: 'Property 15: Data Minimization Enforcement', fn: globalThis.testDataMinimizationEnforcement },
+                { name: 'Property 16: Field Masking and Reveal Logging', fn: globalThis.testFieldMaskingAndRevealLogging }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -8281,7 +8232,7 @@
 
         // ========== Phase 7 Property Tests: Vendor & Financial Controls ==========
         // Property 18: Vendor Access Control and Logging
-        window.testVendorAccessControlAndLogging = () => {
+        globalThis.testVendorAccessControlAndLogging = () => {
             try {
                 VendorGovernanceEngine.resetData();
                 
@@ -8329,7 +8280,7 @@
         };
 
         // Property 20: Financial Change Versioning
-        window.testFinancialChangeVersioning = () => {
+        globalThis.testFinancialChangeVersioning = () => {
             try {
                 FinancialControlsEngine.resetChanges();
                 
@@ -8379,7 +8330,7 @@
         };
 
         // Property 21: Segregation of Duties Enforcement
-        window.testSegregationOfDutiesEnforcement = () => {
+        globalThis.testSegregationOfDutiesEnforcement = () => {
             try {
                 FinancialControlsEngine.resetChanges();
                 
@@ -8439,11 +8390,11 @@
         };
 
         // Governance & Finance test runner
-        window.runGovernanceTests = () => {
+        globalThis.runGovernanceTests = () => {
             const tests = [
-                { name: 'Property 18: Vendor Access Control and Logging', fn: window.testVendorAccessControlAndLogging },
-                { name: 'Property 20: Financial Change Versioning', fn: window.testFinancialChangeVersioning },
-                { name: 'Property 21: Segregation of Duties Enforcement', fn: window.testSegregationOfDutiesEnforcement }
+                { name: 'Property 18: Vendor Access Control and Logging', fn: globalThis.testVendorAccessControlAndLogging },
+                { name: 'Property 20: Financial Change Versioning', fn: globalThis.testFinancialChangeVersioning },
+                { name: 'Property 21: Segregation of Duties Enforcement', fn: globalThis.testSegregationOfDutiesEnforcement }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -8455,7 +8406,7 @@
 
         // ========== Phase 8 Property Tests: UI Adaptation & Safety ==========
         // Property 23: Responsive UI Adaptation
-        window.testResponsiveUIAdaptation = () => {
+        globalThis.testResponsiveUIAdaptation = () => {
             try {
                 UIAdaptationEngine.resetDetection();
                 
@@ -8498,7 +8449,7 @@
         };
 
         // Property 24: Input Mode Detection and Adaptation
-        window.testInputModeDetectionAndAdaptation = () => {
+        globalThis.testInputModeDetectionAndAdaptation = () => {
             try {
                 UIAdaptationEngine.resetDetection();
                 
@@ -8536,7 +8487,7 @@
         };
 
         // Property 25: Privacy Control Functionality
-        window.testPrivacyControlFunctionality = () => {
+        globalThis.testPrivacyControlFunctionality = () => {
             try {
                 UIPrivacySafetyEngine.resetPrivacy();
                 
@@ -8602,11 +8553,11 @@
         };
 
         // UI test runner
-        window.runUITests = () => {
+        globalThis.runUITests = () => {
             const tests = [
-                { name: 'Property 23: Responsive UI Adaptation', fn: window.testResponsiveUIAdaptation },
-                { name: 'Property 24: Input Mode Detection and Adaptation', fn: window.testInputModeDetectionAndAdaptation },
-                { name: 'Property 25: Privacy Control Functionality', fn: window.testPrivacyControlFunctionality }
+                { name: 'Property 23: Responsive UI Adaptation', fn: globalThis.testResponsiveUIAdaptation },
+                { name: 'Property 24: Input Mode Detection and Adaptation', fn: globalThis.testInputModeDetectionAndAdaptation },
+                { name: 'Property 25: Privacy Control Functionality', fn: globalThis.testPrivacyControlFunctionality }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -8619,7 +8570,7 @@
         // ========== Phase 9: Integration & Final Validation ==========
         // End-to-end workflow tests demonstrating full system integration
         // F9.T End-to-end tests: Auth → access → audit → export → incident flows
-        window.testAuthToAccessFlow = () => {
+        globalThis.testAuthToAccessFlow = () => {
             try {
                 // Scenario: User authenticates and accesses a patient record
                 ComplianceEngine.setMode('hipaa_strict');
@@ -8657,7 +8608,7 @@
             }
         };
 
-        window.testExportAndRetentionFlow = () => {
+        globalThis.testExportAndRetentionFlow = () => {
             try {
                 // Scenario: User exports patient data with lifecycle management
                 ComplianceEngine.setMode('hipaa_strict');
@@ -8711,7 +8662,7 @@
             }
         };
 
-        window.testAnomalyToIncidentFlow = () => {
+        globalThis.testAnomalyToIncidentFlow = () => {
             try {
                 // Scenario: Anomaly detected, incident created, investigated, closed
                 ComplianceEngine.setMode('hipaa_strict');
@@ -8781,7 +8732,7 @@
             }
         };
 
-        window.testComplianceModeConsistency = () => {
+        globalThis.testComplianceModeConsistency = () => {
             try {
                 // Scenario: Verify mode-based policy enforcement across all engines
                 
@@ -8830,12 +8781,12 @@
         };
 
         // Integration test runner - Phase 9 end-to-end tests
-        window.runIntegrationTests = () => {
+        globalThis.runIntegrationTests = () => {
             const tests = [
-                { name: 'E2E Flow 1: Auth→Access→Audit', fn: window.testAuthToAccessFlow },
-                { name: 'E2E Flow 2: Export→Retention→Lifecycle', fn: window.testExportAndRetentionFlow },
-                { name: 'E2E Flow 3: Anomaly→Incident→Investigation', fn: window.testAnomalyToIncidentFlow },
-                { name: 'E2E Validation: Compliance Mode Consistency', fn: window.testComplianceModeConsistency }
+                { name: 'E2E Flow 1: Auth→Access→Audit', fn: globalThis.testAuthToAccessFlow },
+                { name: 'E2E Flow 2: Export→Retention→Lifecycle', fn: globalThis.testExportAndRetentionFlow },
+                { name: 'E2E Flow 3: Anomaly→Incident→Investigation', fn: globalThis.testAnomalyToIncidentFlow },
+                { name: 'E2E Validation: Compliance Mode Consistency', fn: globalThis.testComplianceModeConsistency }
             ];
             const results = tests.map(t => {
                 const result = t.fn();
@@ -8858,7 +8809,7 @@
         let currentFocusedRowIndex = 0;
 
         // Keyboard Navigation: Tab and Arrow keys through patient table rows
-        window.initKeyboardNavigation = () => {
+        globalThis.initKeyboardNavigation = () => {
             const tableBody = document.querySelector('tbody');
             if (!tableBody) return;
 
@@ -8906,7 +8857,7 @@
                             const patientId = rows[currentFocusedRowIndex].getAttribute('data-patient-id');
                             if (patientId) {
                                 e.preventDefault();
-                                window.openModal(patientId);
+                                globalThis.openModal(patientId);
                             }
                         }
                         break;
@@ -8915,7 +8866,7 @@
         };
 
         // Swipe Gesture Detection for mobile tab navigation
-        window.initSwipeNavigation = () => {
+        globalThis.initSwipeNavigation = () => {
             let touchStartX = 0;
             let touchEndX = 0;
             const SWIPE_THRESHOLD = 50;
@@ -8948,7 +8899,7 @@
         };
 
         // Focus Trap in Modals (prevent Tab from escaping modal)
-        window.initModalFocusTrap = () => {
+        globalThis.initModalFocusTrap = () => {
             const modal = document.getElementById('patient-modal');
             if (!modal) return;
 
@@ -8978,7 +8929,7 @@
         };
 
         // Mobile Action Bar Initialization
-        window.initMobileActionBar = () => {
+        globalThis.initMobileActionBar = () => {
             const actionBar = document.querySelector('.mobile-action-bar');
             if (!actionBar) return;
 
@@ -8988,7 +8939,7 @@
 
             if (addBtn) {
                 addBtn.addEventListener('click', () => {
-                    window.openModal();
+                    globalThis.openModal();
                 });
             }
 
@@ -9000,7 +8951,7 @@
                         return;
                     }
                     if (confirm(`Archive ${selected.length} patient(s)?`)) {
-                        selected.forEach(id => window.toggleArchive(id, true));
+                        selected.forEach(id => globalThis.toggleArchive(id, true));
                     }
                 });
             }
@@ -9013,15 +8964,15 @@
                         return;
                     }
                     if (confirm(`Delete ${selected.length} patient(s)? This cannot be undone.`)) {
-                        selected.forEach(id => window.deletePatient(id));
+                        selected.forEach(id => globalThis.deletePatient(id));
                     }
                 });
             }
         };
 
         // Respect User's Motion Preferences
-        window.initReducedMotionSupport = () => {
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        globalThis.initReducedMotionSupport = () => {
+            const prefersReducedMotion = globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
             
             if (prefersReducedMotion) {
                 document.documentElement.classList.add('reduce-motion');
@@ -9029,7 +8980,7 @@
             }
 
             // Listen for changes
-            window.matchMedia('(prefers-reduced-motion: reduce)').addListener((e) => {
+            globalThis.matchMedia('(prefers-reduced-motion: reduce)').addListener((e) => {
                 if (e.matches) {
                     document.documentElement.classList.add('reduce-motion');
                 } else {
@@ -9039,7 +8990,7 @@
         };
 
         // Page-level focus management
-        window.focusMainContent = () => {
+        globalThis.focusMainContent = () => {
             const mainContent = document.getElementById('main-content');
             if (mainContent) {
                 mainContent.focus();
@@ -9048,7 +8999,7 @@
         };
 
         // Screen reader announcements
-        window.announceToScreenReader = (message) => {
+        globalThis.announceToScreenReader = (message) => {
             const announcementZone = document.createElement('div');
             announcementZone.setAttribute('role', 'alert');
             announcementZone.setAttribute('aria-live', 'polite');
@@ -9063,325 +9014,13 @@
 
         // Initialize all Phase 4 features on page load
         document.addEventListener('DOMContentLoaded', () => {
-            window.initKeyboardNavigation();
-            window.initSwipeNavigation();
-            window.initModalFocusTrap();
-            window.initMobileActionBar();
-            window.initReducedMotionSupport();
+            globalThis.initKeyboardNavigation();
+            globalThis.initSwipeNavigation();
+            globalThis.initModalFocusTrap();
+            globalThis.initMobileActionBar();
+            globalThis.initReducedMotionSupport();
             console.log('✓ Phase 4: Mobile & Accessibility features initialized');
         });
-
-        console.log('✓ Phase 5: Advanced Features initialized (Timeline, Analytics, PDF, Audit, Procedures, Shift Reports)');
-    </script>
-</body>
-</html>
-
-        // Timeline Management
-        let patientTimeline = {};
-
-        window.loadPatientTimeline = async () => {
-            const mrn = document.getElementById('timeline-filter-mrn')?.value || '';
-            const fromDate = document.getElementById('timeline-filter-from')?.value || '';
-
-            if (!mrn) {
-                showToast('⚠️  Enter MRN to load timeline');
-                return;
-            }
-
-            const filtered = patients.filter(p => p.mrn === mrn);
-            if (filtered.length === 0) {
-                showToast('❌ No records found for MRN: ' + mrn);
-                return;
-            }
-
-            // Sort by date descending (newest first)
-            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            // Render timeline
-            renderTimeline(filtered);
-            showToast(`✓ Loaded ${filtered.length} records`);
-        };
-
-        window.renderTimeline = (recordList) => {
-            const container = document.getElementById('timeline-content');
-            if (!container) return;
-
-            container.innerHTML = recordList.map((p, idx) => {
-                const statusBg = STATUS_COLORS[p.procedureStatus]?.bgHeavy || 'bg-slate-200';
-                const statusText = STATUS_COLORS[p.procedureStatus]?.text || 'text-slate-700';
-                
-                return `
-                    <div class="timeline-event">
-                        <div class="timeline-date">${new Date(p.date).toLocaleDateString()}</div>
-                        <div class="timeline-status ${statusBg} ${statusText}">${p.procedureStatus || 'To-Do'}</div>
-                        <div class="timeline-notes">
-                            <strong>Room:</strong> ${p.room} | <strong>Hospital:</strong> ${p.hospital}
-                            <br><strong>Plan:</strong> ${p.plan || 'N/A'}
-                            <br><strong>Findings:</strong> ${p.findingsText || 'None documented'}
-                            ${p.pending ? `<br><strong>Pending:</strong> ${p.pending}` : ''}
-                            ${p.followUp ? `<br><strong>Follow-up:</strong> ${p.followUp}` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        };
-
-        // Analytics & Statistics
-        window.loadAnalyticsDashboard = () => {
-            const container = document.getElementById('analytics-content');
-            if (!container) return;
-
-            const stats = window.calculateAnalytics();
-            container.innerHTML = `
-                <div class="analytics-card">
-                    <div class="analytics-card-title">Total Patients</div>
-                    <div class="analytics-card-value">${stats.total}</div>
-                    <div class="analytics-card-subtitle">Active records</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-card-title">STAT Cases</div>
-                    <div class="analytics-card-value">${stats.statCount}</div>
-                    <div class="analytics-trend trend-up">↑ Urgent</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-card-title">Surgical Cases</div>
-                    <div class="analytics-card-value">${stats.surgicalCount}</div>
-                    <div class="analytics-card-subtitle">${((stats.surgicalCount / stats.total) * 100).toFixed(1)}%</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-card-title">Avg LOS</div>
-                    <div class="analytics-card-value">${stats.avgLOS.toFixed(1)}</div>
-                    <div class="analytics-card-subtitle">days in hospital</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-card-title">Pending Tests</div>
-                    <div class="analytics-card-value">${stats.pendingCount}</div>
-                    <div class="analytics-trend trend-down">↓ Need follow-up</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-card-title">Users Today</div>
-                    <div class="analytics-card-value">${new Set(AuditLogger.getLogs().filter(l => {
-                        const logDate = new Date(l.timestamp);
-                        const today = new Date();
-                        return logDate.toDateString() === today.toDateString();
-                    }).map(l => l.userId)).size}</div>
-                    <div class="analytics-card-subtitle">active sessions</div>
-                </div>
-            `;
-        };
-
-        window.calculateAnalytics = () => {
-            const total = patients.length;
-            const statCount = patients.filter(p => p.priority === 'yes' || p.priority === true).length;
-            const surgicalCount = patients.filter(p => PROC_KEYWORDS.test(p.plan || '')).length;
-            const pendingCount = patients.filter(p => p.pending && p.pending.trim()).length;
-
-            let totalLOS = 0;
-            let losCount = 0;
-            patients.forEach(p => {
-                if (p.date) {
-                    const los = window.calculateLOS(p.date);
-                    if (!isNaN(los)) {
-                        totalLOS += los;
-                        losCount++;
-                    }
-                }
-            });
-
-            return {
-                total,
-                statCount,
-                surgicalCount,
-                pendingCount,
-                avgLOS: losCount > 0 ? totalLOS / losCount : 0
-            };
-        };
-
-        // PDF Report Generation
-        window.generatePDFReport = async () => {
-            const reportType = document.getElementById('report-type')?.value || 'daily';
-            const reportDate = document.getElementById('report-date')?.value || new Date().toISOString().split('T')[0];
-            const hospital = document.getElementById('report-hospital')?.value || '';
-
-            let filtered = patients.filter(p => p.date === reportDate);
-            if (hospital) filtered = filtered.filter(p => p.hospital === hospital);
-
-            if (filtered.length === 0) {
-                showToast('❌ No records for selected date/hospital');
-                return;
-            }
-
-            // Build PDF content
-            const titleMap = {
-                'daily': '📋 Daily Rounding Report',
-                'surgical': '🔪 Surgical Procedures',
-                'patient-summary': '👥 Patient Summary',
-                'hospital-census': '🏥 Hospital Census',
-                'shift-handoff': '🔄 Shift Handoff'
-            };
-
-            let htmlContent = `
-                <h1>${titleMap[reportType]}</h1>
-                <p><strong>Date:</strong> ${new Date(reportDate).toLocaleDateString()}</p>
-                <p><strong>Hospital:</strong> ${hospital || 'All Hospitals'}</p>
-                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-                <hr>
-            `;
-
-            filtered.forEach((p, idx) => {
-                htmlContent += `
-                    <div style="page-break-inside: avoid; margin-bottom: 20px; border: 1px solid #ddd; padding: 10px;">
-                        <p><strong>[${idx + 1}] ${p.room} - ${p.name}</strong></p>
-                        <p>MRN: ${p.mrn} | DOB: ${p.dob} | Hospital: ${p.hospital}</p>
-                        <p><strong>Plan:</strong> ${p.plan || 'N/A'}</p>
-                        <p><strong>Findings:</strong> ${p.findingsText || 'None'}</p>
-                        ${p.pending ? `<p><strong>Pending:</strong> ${p.pending}</p>` : ''}
-                        <p><strong>Supervising MD:</strong> ${p.supervisingMd || 'TBD'}</p>
-                        <p><strong>Status:</strong> ${p.procedureStatus}</p>
-                    </div>
-                `;
-            });
-
-            // Show preview (in production, this would use jsPDF)
-            const preview = document.getElementById('pdf-preview');
-            if (preview) {
-                preview.innerHTML = `<div style="white-space: pre-wrap; font-family: monospace; font-size: 12px;">${htmlContent}</div>`;
-            }
-
-            showToast(`✓ PDF report ready (${filtered.length} records)`);
-        };
-
-        // Audit Logging
-        window.loadAuditLogs = async () => {
-            const actionFilter = document.getElementById('audit-filter-action')?.value || '';
-            const fromDate = document.getElementById('audit-filter-from')?.value || '';
-            const toDate = document.getElementById('audit-filter-to')?.value || '';
-
-            let logs = AuditLogger.getLogs();
-
-            if (actionFilter) logs = logs.filter(l => l.action === actionFilter);
-            if (fromDate) logs = logs.filter(l => new Date(l.timestamp) >= new Date(fromDate));
-            if (toDate) logs = logs.filter(l => new Date(l.timestamp) <= new Date(toDate));
-
-            // Sort by timestamp descending
-            logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-            const tbody = document.getElementById('audit-log-body');
-            if (!tbody) return;
-
-            tbody.innerHTML = logs.slice(0, 100).map(log => `
-                <tr>
-                    <td>${new Date(log.timestamp).toLocaleString()}</td>
-                    <td>${log.userId || 'Unknown'}</td>
-                    <td><span class="audit-action-${log.action}">${log.action.toUpperCase()}</span></td>
-                    <td>${log.recordId?.substring(0, 12) || '-'}</td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${log.details || JSON.stringify(log.changes || {}).substring(0, 50)}</td>
-                </tr>
-            `).join('');
-
-            showToast(`✓ Loaded ${logs.length} audit logs`);
-        };
-
-        // Procedure Log Management
-        let procedureFilter = 'all';
-
-        window.filterProcedures = (type) => {
-            procedureFilter = type;
-            window.renderProcedureLog();
-        };
-
-        window.renderProcedureLog = () => {
-            const container = document.getElementById('procedure-log-content');
-            if (!container) return;
-
-            let filtered = patients.filter(p => PROC_KEYWORDS.test(p.plan || ''));
-
-            if (procedureFilter !== 'all') {
-                const filterRegex = new RegExp(procedureFilter, 'i');
-                filtered = filtered.filter(p => filterRegex.test(p.plan || ''));
-            }
-
-            // Sort by date descending
-            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            container.innerHTML = filtered.map(p => {
-                const procType = procedureFilter === 'all' 
-                    ? (p.plan.match(/(cysto|stent|turbt|laser|robotic|biopsy)/i)?.[0] || 'procedure').toUpperCase()
-                    : procedureFilter.toUpperCase();
-                
-                return `
-                    <div class="procedure-log-item">
-                        <div class="procedure-log-date">${new Date(p.date).toLocaleDateString()}</div>
-                        <div class="procedure-log-type">${procType}</div>
-                        <div><strong>${p.name}</strong> (${p.mrn}) - Room ${p.room}</div>
-                        <div class="procedure-log-description">${p.plan}</div>
-                        <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #9ca3af;">
-                            Status: <span style="font-weight: bold;">${p.procedureStatus}</span> | 
-                            Hospital: ${p.hospital} | 
-                            MD: ${p.supervisingMd || 'TBD'}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        };
-
-        // Shift Report Generation
-        window.generateShiftReport = async () => {
-            const shiftDate = document.getElementById('shift-report-date')?.value || new Date().toISOString().split('T')[0];
-            const startTime = document.getElementById('shift-start-time')?.value || '06:00';
-            const endTime = document.getElementById('shift-end-time')?.value || '18:00';
-
-            const dayRecords = patients.filter(p => p.date === shiftDate);
-            if (dayRecords.length === 0) {
-                showToast('⚠️  No records for selected date');
-                return;
-            }
-
-            const hospitals = [...new Set(dayRecords.map(p => p.hospital))];
-            const surgicalCount = dayRecords.filter(p => PROC_KEYWORDS.test(p.plan || '')).length;
-            const onCallProvider = globalSettings.onCall || 'TBD';
-
-            const container = document.getElementById('shift-report-content');
-            if (!container) return;
-
-            container.innerHTML = `
-                <div class="shift-report">
-                    <div class="shift-header">
-                        <div class="shift-info-item">
-                            <div class="shift-info-label">📅 Date</div>
-                            <div class="shift-info-value">${new Date(shiftDate).toLocaleDateString()}</div>
-                        </div>
-                        <div class="shift-info-item">
-                            <div class="shift-info-label">🕐 Shift Time</div>
-                            <div class="shift-info-value">${startTime} - ${endTime}</div>
-                        </div>
-                        <div class="shift-info-item">
-                            <div class="shift-info-label">👨‍⚕️ On-Call</div>
-                            <div class="shift-info-value">${onCallProvider}</div>
-                        </div>
-                        <div class="shift-info-item">
-                            <div class="shift-info-label">👥 Total Patients</div>
-                            <div class="shift-info-value">${dayRecords.length}</div>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <h4 style="font-weight: bold; margin-bottom: 0.5rem;">Hospital Breakdown</h4>
-                        ${hospitals.map(h => {
-                            const count = dayRecords.filter(p => p.hospital === h).length;
-                            return `<div class="shift-summary-item"><span>${h}</span><span style="font-weight: bold;">${count} patient${count !== 1 ? 's' : ''}</span></div>`;
-                        }).join('')}
-                    </div>
-                    <div>
-                        <h4 style="font-weight: bold; margin-bottom: 0.5rem;">Summary</h4>
-                        <div class="shift-summary-item"><span>Surgical Procedures</span><span style="font-weight: bold;">${surgicalCount}</span></div>
-                        <div class="shift-summary-item"><span>Pending Tests</span><span style="font-weight: bold;">${dayRecords.filter(p => p.pending).length}</span></div>
-                        <div class="shift-summary-item"><span>Follow-ups</span><span style="font-weight: bold;">${dayRecords.filter(p => p.followUp).length}</span></div>
-                    </div>
-                </div>
-            `;
-
-            showToast('✓ Shift report generated');
-        };
 
         console.log('✓ Phase 5: Advanced Features initialized (Timeline, Analytics, PDF, Audit, Procedures, Shift Reports)');
     </script>
