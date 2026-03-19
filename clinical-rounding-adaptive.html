@@ -2657,7 +2657,8 @@
             
             // Temporarily override getFilteredData
             globalThis._searchOverride = filtered;
-            renderUI();
+            // Force refresh on search
+            globalThis.forceRefresh();
         };
 
         // Quick Filter Buttons
@@ -2685,14 +2686,16 @@
             }
             
             globalThis._searchOverride = filtered;
-            renderUI();
+            // Force refresh on quick filter
+            globalThis.forceRefresh();
         };
 
         // Clear Search
         globalThis.clearSearch = () => {
             document.getElementById('search-box').value = '';
             globalThis._searchOverride = null;
-            renderUI();
+            // Force refresh on clear
+            globalThis.forceRefresh();
             showToast('🔍 Search cleared');
         };
 
@@ -3296,6 +3299,9 @@
                 if (groupedContainer) groupedContainer.style.display = '';
                 globalThis.renderGroupedView();
             }
+            
+            // Force refresh on view mode change
+            globalThis.forceRefresh();
             
             if (!options.silent) {
                 const viewLabels = { table: 'Table View', card: 'Card View', grouped: 'By Hospital' };
@@ -5171,7 +5177,24 @@
             });
         };
 
+        // Force Refresh: Clears cache and re-renders display
+        globalThis.forceRefresh = () => {
+            // Clear any stale data cache
+            globalThis._lastRenderTime = null;
+            globalThis._cachedFilteredData = null;
+            
+            // Clear search override if it exists
+            if (globalThis._searchOverride) {
+                globalThis._searchOverride = null;
+            }
+            
+            // Trigger full re-render on next renderUI call
+            renderUI();
+        };
+
         globalThis.setTab = (tab) => {
+            // Force refresh when switching tabs
+            globalThis.forceRefresh();
             currentTab = tab;
             ['table-section', 'calendar-section', 'oncall-section', 'timeline-section', 'analytics-section', 'reports-section', 'audit-section', 'procedure-log-section', 'shift-report-section'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
             

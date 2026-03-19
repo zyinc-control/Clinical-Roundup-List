@@ -33,6 +33,9 @@ A **modern healthcare patient census and rounding platform** for managing patien
 
 - **Bulk Import Preview & Duplicate Detection:** Safe import workflow lets you review data before finalizing, with smart duplicate-matching (by MRN and date).
 - **Enhanced STAT Card Visuals:** Urgent patients (STAT) are highlighted in both Table and Card views.
+- **STAT Priority Reintroduced in Patient Form:** Add/Edit modal includes a dedicated STAT priority checkbox with high-visibility red block label.
+- **Analytics Dashboard Upgrade:** Added preset analytics modes (`Census Overview`, `Procedure Pipeline`, `Hospital Workload`, `Risk and Pending Focus`) and validated custom query input (`key:value`).
+- **Tab UX Fix:** Active blue tab highlight now follows the selected tab consistently.
 - **Dual-Mode Operation:** Choose Local or M365 mode at first launch or switch later as needed.
 - **Performance Improvements:** Faster filtering, smarter caching, and robust field validation.
 - **Other:** Improved mobile UX, stricter audit logging, CSV import/export enhancements.
@@ -96,9 +99,11 @@ Perfect for testing or small teams:
 - [x] Full Microsoft 365 Integration (**Complete!**)
 - [x] Bulk import preview and duplicate detection
 - [x] STAT card display improvements
+- [x] Analytics presets + validated custom query
+- [x] Graphic user guide and AI augmentation options documentation
 - [ ] HIPAA Strict Mode (field masking, encrypted exports)
 - [ ] SOX Strict Mode (financial audit trails)
 - [ ] Advanced analytics/reporting
 - [ ] EHR integration (planned)
 
-_Last updated: January 18, 2026. Maintainer: art1907_
+_Last updated: March 16, 2026. Maintainer: art1907_

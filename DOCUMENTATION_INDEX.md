@@ -1,7 +1,7 @@
 # 📑 Clinical Rounding Platform - Documentation Index
 
 **Status**: ✅ HTML Integration Complete | 📦 Documentation Consolidated  
-**Last Updated**: January 18, 2026  
+**Last Updated**: March 16, 2026  
 **Ready**: For Local Testing & Optional M365 Setup
 
 ---
@@ -59,6 +59,8 @@
 |----------|---------|-----------|--------|
 | [USERGUIDE.md](./USERGUIDE.md) | How to use the app | 30 min | ✅ EXISTING |
 | [AGENTS.md](./AGENTS.md) | Architecture decisions | 60 min | ✅ EXISTING |
+| [GRAPHIC_USER_GUIDE.html](./GRAPHIC_USER_GUIDE.html) | Visual map of UI controls/functions | 10 min | ✅ NEW |
+| [AI_AUGMENTATION_OPTIONS.md](./AI_AUGMENTATION_OPTIONS.md) | AI enhancement opportunity list | 5 min | ✅ NEW |
 
 ### Code & Project
 | Document | Purpose | Read Time | Status |
@@ -117,7 +119,7 @@ Done! You're using the app 🎉
 ```
 1. QUICK_REFERENCE.md           (5 min)
    ↓
-2. INTEGRATION_READY.md         (15 min)
+2. FINAL_STATUS.md              (15 min)
    ↓
 3. HTML_INTEGRATION_CHANGES.md  (30 min)
    ↓
@@ -148,12 +150,12 @@ Done! You're using the app 🎉
 ### New Documents (Created Today)
 These were created specifically for the HTML integration:
 - `FINAL_STATUS.md` - Status report
-- `INTEGRATION_READY.md` - Ready to use summary
 - `QUICK_REFERENCE.md` - Quick start
-- `HTML_INTEGRATION_COMPLETE.md` - What changed
 - `HTML_INTEGRATION_SUMMARY.md` - Detailed overview
 - `HTML_INTEGRATION_CHANGES.md` - Code changes
 - `DOCUMENTATION_INDEX.md` - This file (you are here)
+- `GRAPHIC_USER_GUIDE.html` - Visual map of controls and functions
+- `AI_AUGMENTATION_OPTIONS.md` - AI feature enhancement opportunities
 
 ### Existing Documents
 These were created earlier and are still valid:
@@ -177,13 +179,13 @@ These were created earlier and are still valid:
 - HTML_INTEGRATION_CHANGES.md → Change 2
 
 **Data Storage & Sync**
-- INTEGRATION_READY.md → "How It Works Now"
+- FINAL_STATUS.md → "How It Works Now"
 - M365_MIGRATION.md → "Data Model"
 - HTML_INTEGRATION_CHANGES.md → Change 2
 
 **Local Mode**
 - QUICK_REFERENCE.md → "The Three Modes - Local Mode"
-- INTEGRATION_READY.md → "Testing Checklist → Local Mode"
+- FINAL_STATUS.md → "Testing Checklist → Local Mode"
 - FINAL_STATUS.md → "Deployment Paths → Path 1"
 
 **M365 Setup**
@@ -193,12 +195,12 @@ These were created earlier and are still valid:
 
 **Configuration**
 - QUICK_REFERENCE.md → "Configuration Checklist"
-- HTML_INTEGRATION_COMPLETE.md → "M365_CONFIG Placeholder"
+- HTML_INTEGRATION_SUMMARY.md → "M365_CONFIG Placeholder"
 - INSTALLATION_GUIDE.md → Step 3
 
 **Troubleshooting**
 - QUICK_REFERENCE.md → "Troubleshooting Decision Tree"
-- INTEGRATION_READY.md → "Support & Debugging"
+- FINAL_STATUS.md → "Support & Debugging"
 - INSTALLATION_GUIDE.md → "Troubleshooting Section"
 
 ### By Role
@@ -211,7 +213,7 @@ These were created earlier and are still valid:
 
 **IT Admins**
 1. INSTALLATION_GUIDE.md
-2. INTEGRATION_READY.md
+2. FINAL_STATUS.md
 3. M365_MIGRATION.md
 
 **Clinical Users**
@@ -219,7 +221,7 @@ These were created earlier and are still valid:
 2. USERGUIDE.md
 
 **Decision Makers**
-1. INTEGRATION_READY.md
+1. FINAL_STATUS.md
 2. FINAL_STATUS.md
 3. AGENTS.md (decisions section)
 
@@ -244,7 +246,7 @@ python -m http.server 3000
 **Time**: 10 minutes
 
 ### Complete Path (I Want Everything)
-1. Read [INTEGRATION_READY.md](./INTEGRATION_READY.md) - 15 min
+1. Read [FINAL_STATUS.md](./FINAL_STATUS.md) - 15 min
 2. Read [HTML_INTEGRATION_CHANGES.md](./HTML_INTEGRATION_CHANGES.md) - 30 min
 3. If you want M365: Follow [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md) - 60 min
 4. Test & deploy
@@ -306,7 +308,7 @@ python -m http.server 3000
 **Time**: 2-5 minutes
 
 ### Option B: Understand Everything
-1. Read [INTEGRATION_READY.md](./INTEGRATION_READY.md)
+1. Read [FINAL_STATUS.md](./FINAL_STATUS.md)
 2. Read [HTML_INTEGRATION_CHANGES.md](./HTML_INTEGRATION_CHANGES.md)
 
 **Outcome**: Full understanding of changes  
@@ -356,7 +358,7 @@ A: Yes! Just fill in M365_CONFIG and reload to switch modes.
 | "How do I use this?" | QUICK_REFERENCE.md |
 | "What changed?" | HTML_INTEGRATION_CHANGES.md |
 | "How do I set up M365?" | INSTALLATION_GUIDE.md |
-| "Is it secure?" | INTEGRATION_READY.md |
+| "Is it secure?" | FINAL_STATUS.md |
 | "What's the architecture?" | AGENTS.md |
 | "How do end-users use it?" | USERGUIDE.md |
 
@@ -375,10 +377,11 @@ A: Yes! Just fill in M365_CONFIG and reload to switch modes.
 
 ## 📞 Quick Links
 
-- [Open HTML in Browser](file:///d:/Code/Clinical%20Roundup%20File/clinical-rounding-adaptive.html)
 - [Read QUICK_REFERENCE.md](./QUICK_REFERENCE.md)
-- [Read INTEGRATION_READY.md](./INTEGRATION_READY.md)
+- [Read FINAL_STATUS.md](./FINAL_STATUS.md)
 - [Read INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md)
+- [Open GRAPHIC_USER_GUIDE.html](./GRAPHIC_USER_GUIDE.html)
+- [Read AI_AUGMENTATION_OPTIONS.md](./AI_AUGMENTATION_OPTIONS.md)
 - [View M365_CONFIG](./clinical-rounding-adaptive.html#L854)
 
 ---
@@ -396,6 +399,6 @@ A: Yes! Just fill in M365_CONFIG and reload to switch modes.
 
 ---
 
-**Last Updated**: January 18, 2026  
+**Last Updated**: March 16, 2026  
 **Status**: COMPLETE ✅  
 **Next Phase**: Your choice (use now or set up M365)

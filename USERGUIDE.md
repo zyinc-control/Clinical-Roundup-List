@@ -19,21 +19,38 @@ Welcome to the Clinical Rounding Platform! This guide walks you through using th
 
 ### Login
 
+The app uses your organizational account for secure access.
+
 1. Open the app in your browser
 2. Click **Sign In** (top-right corner)
 3. Enter your organizational email (e.g., `john.smith@yourdomain.com`)
 4. Enter your password
 5. Approve multi-factor authentication (MFA) if prompted
-6. You're logged in! ✅
+6. You're in! ✅
+
+**Note**: On first login, you may see "Local Mode" until credentials are configured. The app works in both modes—local (memory storage) and cloud (M365/SharePoint sync).
 
 ### Your First Look
 
 Once logged in, you'll see:
 
-- **Connection Status** (top left) - "Connected (M365)" or "Offline"
-- **Tabs** (below status) - Census, Surgical, Calendar, Staffing, Archive
-- **Action Buttons** (top right) - Add Patient, Import, Export, Settings
-- **Patient Table** - All active patients with status indicators
+- **Status indicator** - "Connected (M365)" or "Local Mode" or "Offline"
+- **Quick stats** - Active patients, procedures, archived counts
+- **Tab navigation** - Jump between Census, Surgical, Calendar, Staffing, Archive, Timeline, Analytics, Reports, Audit, Procedures, Shifts
+- **Advanced search** - Find patients instantly
+- **Patient table** - All active patients with sorting and filtering
+
+### Connection Modes
+
+The app has three modes depending on your setup:
+
+| Mode | Status | Features | Persistence |
+|------|--------|----------|--------------|
+| **Cloud (M365)** | 🟢 Connected (M365) | Real-time sync, multi-user, full features | SharePoint Lists (permanent) |
+| **Local Mode** | 🟡 Local Mode | Full app features, fast, offline-ready | Browser storage (this session) |
+| **Offline** | ⚫ Offline | View cached data, add locally, sync on reconnect | localStorage + IndexedDB |
+
+**For admins**: If you see "Local Mode", your M365 credentials may not be configured yet. Contact your IT administrator.
 
 ### Patient Status Colors
 
@@ -55,9 +72,25 @@ The main screen provides an overview of patient census and status.
 
 ### Key Sections
 
-- **Patient Table**: Lists all active patients
-- **Filters**: Narrow down by status, hospital, or provider
-- **Search**: Find patients quickly by name or MRN
+- **Status Indicator**: Shows connection status (Connected/Offline) and data persistence mode
+- **Patient Stats**: Quick counts at a glance (Active, Procedures, Archived)
+- **Tab Navigation**: Access different views and tools (11 tabs available)
+- **Advanced Search**: Keyword search + quick filter buttons
+- **Patient Table/View**: Multiple view modes available
+- **Batch Operations**: Select multiple patients for bulk actions
+
+### Search & Quick Filters
+
+**🔍 Advanced Search** (Ctrl/Cmd+/):
+- Search by name, MRN, room, hospital, or findings
+- Results update in real time as you type
+
+**Quick Filter Buttons**:
+- **🔴 STAT Only** - Show only urgent/priority patients
+- **🔵 Procedures** - Surgical cases only
+- **⚡ In Progress** - Currently active patients
+- **📋 Pending Tests** - Waiting on labs or imaging
+- **Clear** - Reset all filters
 
 ### Patient Table Columns
 
@@ -69,6 +102,13 @@ The main screen provides an overview of patient census and status.
 - **Plan**: Treatment plan (abbreviated)
 - **MD**: Supervising physician
 - **Status**: Procedure status (dropdown to change)
+
+### View Modes
+
+The app offers three ways to view patient data:
+- **📊 Table View** - Traditional table format with all columns
+- **🃏 Card View** - Visual cards with patient info, easier to scan
+- **🏥 By Hospital** - Grouped by facility for better organization
 
 ---
 
@@ -87,7 +127,7 @@ The main screen provides an overview of patient census and status.
    - **Supervising MD** - Attending physician
    - **Pending** - Lab work, imaging, procedures
    - **Follow-Up** - Follow-up appointments
-   - **Priority** - Check for STAT/urgent cases
+   - **STAT Priority** - Toggle for urgent cases (shown as red block label in form)
    - **Procedure Status** - To-Do, In-Progress, Completed, Post-Op
    - **Billing Codes** - CPT/ICD codes (if you have billing permissions)
 
@@ -177,17 +217,19 @@ When a patient is discharged or no longer needs active monitoring:
 
 ## Tabs & Views
 
-The application has several tabs to manage different aspects of patient care and scheduling.
+The application has **11 tabs** to manage different aspects of patient care and scheduling.
 
 ### The Census Tab
+**Keyboard Shortcut**: Alt+A
 
 The Census tab shows all **active, ongoing patient records**.
 
 #### What You'll See
 
 - All patients admitted today or before
-- Procedures and treatments in progress
+- Active treatments and follow-ups
 - Sorting: Patients are sorted by STAT priority first, then by date
+- Batch selection: Select multiple patients for bulk operations
 
 #### Typical Workflow
 
@@ -196,12 +238,16 @@ The Census tab shows all **active, ongoing patient records**.
 3. **Add New Patients**: Click + Add Patient as they arrive
 4. **End of Day**: Review pending items, archive discharged patients
 
-#### Keyboard Tips
+#### Batch Operations
 
-- **Mobile**: Tap rows to edit, use dropdown for quick status
-- **Desktop**: Click + drag to scroll through long lists
+Select patients using checkboxes on the left, then:
+- **Change Status** - Update procedure status for selected patients
+- **Archive** - Move to Archive tab
+- **Delete** - Permanently remove (admin only)
+- **Cancel** - Deselect all
 
 ### The Surgical Tab
+**Keyboard Shortcut**: Alt+S
 
 The Surgical tab shows only **procedures and surgical cases** (filtered by keywords: cysto, stent, TURBT, laser, surgery, etc.).
 
@@ -223,6 +269,7 @@ The Surgical tab shows only **procedures and surgical cases** (filtered by keywo
 The surgical tab **auto-filters** based on keywords in findings or plan. If your patient doesn't appear, it means the keywords didn't match. You can still add it manually to the Census tab.
 
 ### The Calendar View
+**Keyboard Shortcut**: Alt+C
 
 The Calendar tab displays a **monthly overview** of patient admissions and procedures.
 
@@ -241,8 +288,9 @@ The Calendar tab displays a **monthly overview** of patient admissions and proce
 - **Holiday Planning**: Know when key dates fall
 
 ### The Staffing Tab
+**Keyboard Shortcut**: Alt+F
 
-The Staffing tab manages **physician on-call coverage**.
+The Staffing tab manages **physician on-call coverage** and provides scheduling overview.
 
 #### Add On-Call Assignment
 
@@ -254,23 +302,158 @@ The Staffing tab manages **physician on-call coverage**.
    - **Hospitals** - Comma-separated list (e.g., "WGMC, AWC, BTMC")
 4. Click **Save**
 
+#### Auto-Fill Features
+
+When you open the Staffing tab:
+- **Provider name** auto-fills from your last entry (or global default)
+- **Date** auto-fills with today's date
+- **Hospital checkboxes** auto-check if you were on-call at those locations
+
 #### View Schedule
 
 - The calendar shows all on-call assignments
 - Color-coded by provider (if configured)
 - Sort by date or provider
 
-#### Edit Assignment
+### The Archive Tab
+**Keyboard Shortcut**: Alt+X
 
-1. Click on a date with an assignment
-2. Modify the provider or hospitals
-3. Click **Save**
+The Archive tab stores **discharged and inactive patients**.
 
-#### Delete Assignment
+#### Archiving a Patient
 
-1. Find the assignment
-2. Click **Delete** (admin only)
-3. Confirm deletion
+When a patient is discharged or no longer needs active monitoring:
+
+1. Click on the patient to open the modal (Census tab)
+2. Click the **Archive** button (bottom of form)
+3. Patient moves to the Archive tab
+4. To restore, open from Archive tab and click **Restore**
+
+#### Viewing Archived Records
+
+- All archived patients listed here
+- Same view modes available (Table, Card, By Hospital)
+- Click to view full details or restore
+
+### The Timeline Tab
+
+The Timeline tab shows patient events **chronologically**.
+
+#### Controls
+
+1. **MRN filter** - Enter patient MRN to focus timeline to one patient
+2. **From date** - Set start date for history window
+3. **Load Timeline** - Fetch and render matching events
+
+#### Use Cases
+
+- **Patient History**: See all visits for a specific patient
+- **Trend Analysis**: Identify patterns over time
+- **Follow-up Tracking**: Review historical visit notes
+
+### The Analytics Tab
+
+The Analytics tab provides **prebuilt analyses and custom query mode**.
+
+#### Preset Analyses
+
+The app provides quick insights:
+1. **Census Overview** - Active census, procedures, STAT cases, pending tests
+2. **Procedure Pipeline** - Procedure volume and status distribution
+3. **Hospital Workload** - Census by hospital, identify busiest sites
+4. **Risk and Pending Focus** - High-attention cohort, length-of-stay context
+
+#### Custom Query Mode (Validated)
+
+Use format: `key:value`
+
+**Allowed keys**:
+- `hospital` - Filter by facility (e.g., `hospital:WGMC`)
+- `status` - Filter by procedure status (e.g., `status:In-Progress`)
+- `mrn` - Find specific patient (e.g., `mrn:12345`)
+- `name` - Search by patient name (e.g., `name:Smith`)
+- `date` - Filter by date (e.g., `date:2026-01-18`)
+- `stat` - Show STAT cases only (e.g., `stat:true`)
+
+The app validates format before executing and blocks invalid queries with helpful feedback.
+
+### The Reports Tab
+
+The Reports tab provides **exportable summaries** of patient data and metrics.
+
+#### Available Reports
+
+- **Daily Census Report** - Current patient count and status
+- **Procedure Summary** - OR schedule and outcomes
+- **Provider Workload** - Cases per physician
+- **Hospital Utilization** - Bed usage by facility
+
+#### Export Options
+
+- Download as PDF for printing
+- Export to Excel for further analysis
+- Email reports directly to team
+
+### The Audit Tab
+
+The Audit tab logs **system access and data changes** (admin view).
+
+#### What's Logged
+
+- Who accessed/modified patient records
+- When changes occurred
+- What was changed and by whom
+- Access attempts (including failed logins)
+
+#### Use Cases
+
+- **Compliance**: HIPAA audit trail documentation
+- **Troubleshooting**: Track who made changes
+- **Accountability**: Review access history per user
+
+#### Audit Controls
+
+- **Date range filter** - View specific time periods
+- **User filter** - See changes by specific staff
+- **Action filter** - Show only creates, updates, or deletes
+- **Export** - Download audit logs for compliance review
+
+### The Procedures Tab
+
+The Procedures tab provides **detailed procedure tracking** separate from census.
+
+#### View Details
+
+- All surgeries and procedures with timeline
+- Start time, end time, provider, location
+- Complication tracking (if enabled)
+- Post-op notes and discharge criteria
+
+#### Procedure Status Tracking
+
+- **Scheduled** - Awaiting OR time
+- **Pre-Op** - Preparations underway
+- **In-Progress** - Active procedure
+- **Post-Op** - Recovery monitoring
+- **Discharged** - Completed with follow-up arranged
+
+### The Shifts Tab
+
+The Shifts tab shows **on-call and shift coverage** at a glance.
+
+#### View Options
+
+- **Weekly view** - See all providers for the week
+- **Monthly view** - Full month coverage grid
+- **Provider view** - See individual's schedule
+- **Hospital view** - Coverage by facility
+
+#### Gap Identification
+
+The system highlights:
+- 🔴 **Gaps** - Days with no coverage
+- 🟡 **Conflicts** - Same provider assigned multiple times
+- ✅ **Full Coverage** - All days covered
 
 ---
 
@@ -411,21 +594,40 @@ The Staffing tab manages **physician on-call coverage**.
 
 ## Tips & Keyboard Shortcuts
 
+### Keyboard Shortcuts
+
+**Patient Management**:
+- `Ctrl+N` (or `Cmd+N`) - New patient
+- `Ctrl+E` (or `Cmd+E`) - Export to Excel
+- `Ctrl+P` (or `Cmd+P`) - Print selected records
+
+**Tab Navigation**:
+- `Alt+A` - Census tab
+- `Alt+S` - Surgical tab
+- `Alt+C` - Calendar tab
+- `Alt+F` - Staffing tab
+- `Alt+X` - Archive tab
+
+**App Controls**:
+- `Ctrl+/` (or `Cmd+/`) - Advanced search
+- `Ctrl+,` (or `Cmd+,`) - Settings panel
+- `Ctrl+Shift+?` - Show all shortcuts
+- `Escape` - Close search, settings, or help
+
 ### Mobile Tips
 
 - **Landscape mode**: Wider table view, easier to read
-- **Tap and hold**: Right-click menu on some devices
-- **Swipe**: Scroll through long tables horizontally
-- **Auto-collapse**: Long fields collapse for readability; tap to expand
+- **Swipe left/right**: Navigate between tabs on mobile
+- **Tap and hold**: Right-click menu on some devices (if supported)
+- **Tap row**: Open patient details
+- **Status dropdown**: Quick-change procedure status without opening full form
 
 ### Desktop Tips
 
-- **Keyboard shortcuts** (coming soon):
-  - `Ctrl+N` - New patient
-  - `Ctrl+E` - Export
-  - `Ctrl+I` - Import
-- **Click headers**: Sort patients by any column (future feature)
-- **Drag to select**: Select multiple patients for bulk actions (future feature)
+- **Click to select**: Use checkboxes to select multiple patients for batch operations
+- **Drag columns**: Resize table columns (coming soon)
+- **Click headers**: Sort by any column
+- **Double-click row**: Quick-edit mode for fast updates
 
 ### Data Entry Tips
 
@@ -435,12 +637,20 @@ The Staffing tab manages **physician on-call coverage**.
 - **Findings**: Use bullet points or abbreviations (e.g., "L hydro, 2mm stone, S/P CRULLS 12/20")
 - **Plan**: Be specific (e.g., "Cysto/stent removal 12/28 @ 2pm", not just "Follow-up")
 
+### Search Tips
+
+- Use **Advanced Search** (Ctrl+/) for quick filtering
+- Combine search with **Quick Filter buttons** (STAT Only, Procedures, Pending Tests)
+- Search works across all fields: name, MRN, findings, plan, hospital
+- Results update in real-time as you type
+
 ### Offline Usage
 
 - **Cached data**: App caches recent patients automatically
 - **No internet**: You can view, edit, and add patients locally
+- **Status**: Shows "Offline" or "Local Mode" in status area
 - **Reconnect**: When online, changes sync automatically
-- **Conflicts**: If edited offline and online simultaneously, online version wins
+- **Data safety**: Changes are saved locally until connection restored
 
 ---
 
@@ -587,27 +797,46 @@ A: According to your hospital's data retention policy. Ask your IT admin.
 A: Yes, the app is cloud-based. Only your organizational login is required.
 
 **Q: How do I print a patient record?**  
-A: Use your browser's Print function (Ctrl+P) to print the current view or export to Excel first.
+A: Use your browser's Print function (Ctrl+P) to print the current view, or export to Excel first.
 
 **Q: Is my data encrypted?**  
-A: Yes, all data is encrypted in transit (HTTPS) and at rest in Azure. Access is audited and logged.
+A: Yes, all data is encrypted in transit (HTTPS) and at rest in SharePoint. Access is audited and logged.
 
 **Q: What's the "Copy from Previous Visit" button?**  
 A: It copies all data from the patient's last visit except findings, pending items, and follow-up (those are assumed to be new for each visit). Saves time entering repetitive info.
+
+**Q: What's "Local Mode" vs "Connected (M365)"?**  
+A: Local Mode = App works in your browser without cloud sync (fast, no setup). Connected = Data syncs to M365/SharePoint (shared team access). Contact IT admin to enable M365 mode.
+
+**Q: How do I create a patient on multiple dates?**  
+A: Same patient, different date = new visit record. Use "Copy from Previous Visit" to speed up data entry for repeat patients.
+
+**Q: What does "Import New Only" vs "Import All" mean?**  
+A: **Import New Only** = Add new records, skip duplicates (safe if unsure). **Import All** = Add new + replace duplicates with file data (use for corrections). See "Bulk Import (Multiple Files)" section for examples.
 
 ---
 
 ## Version History
 
-**v1.0** (Jan 2026) - Initial Azure/M365 migration
-- Replaced Firebase with SharePoint Lists backend
-- Added Azure authentication (Entra ID)
+**v2.0** (Mar 2026) - Enhanced UI & Advanced Features
+- Added 11 tabs including Timeline, Analytics, Reports, Audit, Procedures, Shifts
+- Implemented batch operations (select, change status, archive, delete)
+- Added advanced search with quick filters
+- Multiple view modes (Table, Card, By Hospital)
+- Dark mode and accessibility features
+- Enhanced keyboard shortcuts
+- Bulk import preview with duplicate detection
+
+**v1.0** (Jan 2026) - Initial M365 Migration
+- Migrated from Firebase to M365/SharePoint backend
+- Added MSAL.js authentication (Entra ID)
 - Improved offline caching and polling
 - Added hospital field and CSV import
 - Added OneDrive Excel export
+- "Copy from Previous Visit" feature
 
 ---
 
-**Last Updated**: January 12, 2026
+**Last Updated**: March 18, 2026
 
 For the latest version of this guide, check your app's Help section or contact your administrator.
