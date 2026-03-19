@@ -488,6 +488,63 @@ async function api_fetchPatients(dateFilter = null) {
     }
 }
 
+async function api_normalizePriorityFields(options = {}) {
+    const { forceNo = false, dryRun = false } = options || {};
+    const listId = M365_CONFIG.sharepoint.lists.patients;
+    const siteId = M365_CONFIG.sharepoint.siteId;
+
+    const normalizePriorityValue = (raw) => {
+        if (forceNo) return 'No';
+        if (raw === 'Yes' || raw === true || raw === 'true' || raw === 1 || raw === '1') return 'Yes';
+        return 'No';
+    };
+
+    const endpoint = `/sites/${siteId}/lists/${listId}/items?expand=fields&$top=1000`;
+    const response = await graphRequest(endpoint);
+    const items = response?.value || [];
+
+    let updated = 0;
+    let skipped = 0;
+    const failed = [];
+
+    for (const item of items) {
+        const currentPriority = item?.fields?.Priority;
+        const nextPriority = normalizePriorityValue(currentPriority);
+
+        // Accept both SharePoint Choice/YesNo representations as already-normalized.
+        const isAlreadyNormalized = (currentPriority === nextPriority)
+            || (nextPriority === 'Yes' && (currentPriority === true || currentPriority === 'true' || currentPriority === 1 || currentPriority === '1'))
+            || (nextPriority === 'No' && (currentPriority === false || currentPriority === 'false' || currentPriority === 0 || currentPriority === '0' || currentPriority == null || currentPriority === ''));
+
+        if (isAlreadyNormalized) {
+            skipped += 1;
+            continue;
+        }
+
+        if (!dryRun) {
+            try {
+                await graphRequest(`/sites/${siteId}/lists/${listId}/items/${item.id}/fields`, 'PATCH', { Priority: nextPriority });
+            } catch (err) {
+                failed.push({ id: item.id, error: String(err?.message || err) });
+                continue;
+            }
+        }
+
+        updated += 1;
+    }
+
+    const result = {
+        total: items.length,
+        updated,
+        skipped,
+        failedCount: failed.length,
+        failed
+    };
+
+    console.log('Priority normalization result:', result);
+    return result;
+}
+
 async function api_savePatient(patientData) {
     console.log('SAVE enter', { mrn: patientData?.mrn, name: patientData?.name, has_id: !!patientData?.id });
 
@@ -1198,6 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.m365SaveOnCall = api_saveOnCallShift;
     window.m365DeleteOnCall = api_deleteOnCallShift;
     window.m365SaveSetting = api_saveSetting;
+    window.m365NormalizePriorityFields = api_normalizePriorityFields;
     window.m365GetCurrentUser = getCurrentUser;
     window.m365ExportToOneDrive = exportToOneDrive;
     window.m365ImportFromCSV = api_importFromCSV;
@@ -1232,6 +1290,7 @@ if (typeof module !== 'undefined' && module.exports) {
         deleteOnCallShift: api_deleteOnCallShift,
         fetchSettings: api_fetchSettings,
         saveSetting: api_saveSetting,
+        normalizePriorityFields: api_normalizePriorityFields,
         exportToOneDrive,
         importFromCSV: api_importFromCSV
     };
