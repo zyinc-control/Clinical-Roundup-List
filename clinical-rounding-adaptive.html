@@ -4652,58 +4652,99 @@
             };
         })();
 
-        // US Federal Holidays
-        const US_HOLIDAYS = {
-            '01-01': { name: 'New Year\'s Day', emoji: '🎉' },
-            '07-04': { name: 'Independence Day', emoji: '🎆' },
-            '11-11': { name: 'Veterans Day', emoji: '🎖️' },
-            '12-25': { name: 'Christmas', emoji: '🎄' }
+        // US Federal + Canadian Statutory Holidays
+        const FIXED_HOLIDAYS = {
+            '01-01': [{ name: "New Year's Day",              emoji: '🎉' }],
+            '06-19': [{ name: 'Juneteenth',                  emoji: '✊' }],
+            '07-01': [{ name: 'Canada Day',                  emoji: '🍁' }],
+            '07-04': [{ name: 'Independence Day',            emoji: '🎆' }],
+            '09-30': [{ name: 'Truth & Reconciliation Day',  emoji: '🧡' }],
+            '11-11': [{ name: 'Veterans / Remembrance Day',  emoji: '🎖️' }],
+            '12-25': [{ name: 'Christmas Day',               emoji: '🎄' }],
+            '12-26': [{ name: 'Boxing Day',                  emoji: '🎁' }],
         };
+
+        function calculateEaster(year) {
+            const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+            const d = Math.floor(b / 4), e = b % 4;
+            const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+            const h = (19 * a + b - d - g + 15) % 30;
+            const i = Math.floor(c / 4), k = c % 4;
+            const l = (32 + 2 * e + 2 * i - h - k) % 7;
+            const mo = Math.floor((h + l - 7 * (Math.floor((a + 11 * h + 22 * l) / 451)) + 114) / 31);
+            const dy = ((h + l - 7 * (Math.floor((a + 11 * h + 22 * l) / 451)) + 114) % 31) + 1;
+            return new Date(year, mo - 1, dy);
+        }
 
         function getVariableHolidays(year) {
             const holidays = {};
-            
-            let mlkDay = new Date(year, 0, 1);
-            while (mlkDay.getDay() !== 1) mlkDay.setDate(mlkDay.getDate() + 1);
-            mlkDay.setDate(mlkDay.getDate() + 14);
-            holidays[`${String(mlkDay.getMonth() + 1).padStart(2, '0')}-${String(mlkDay.getDate()).padStart(2, '0')}`] = { name: 'MLK Jr. Day', emoji: '✊' };
-            
-            let presDay = new Date(year, 1, 1);
-            while (presDay.getDay() !== 1) presDay.setDate(presDay.getDate() + 1);
-            presDay.setDate(presDay.getDate() + 14);
-            holidays[`${String(presDay.getMonth() + 1).padStart(2, '0')}-${String(presDay.getDate()).padStart(2, '0')}`] = { name: 'Presidents\' Day', emoji: '🇺🇸' };
-            
-            let memDay = new Date(year, 4, 31);
-            while (memDay.getDay() !== 1) memDay.setDate(memDay.getDate() - 1);
-            holidays[`${String(memDay.getMonth() + 1).padStart(2, '0')}-${String(memDay.getDate()).padStart(2, '0')}`] = { name: 'Memorial Day', emoji: '🙏' };
-            
-            let laborDay = new Date(year, 8, 1);
-            while (laborDay.getDay() !== 1) laborDay.setDate(laborDay.getDate() + 1);
-            holidays[`${String(laborDay.getMonth() + 1).padStart(2, '0')}-${String(laborDay.getDate()).padStart(2, '0')}`] = { name: 'Labor Day', emoji: '💼' };
-            
-            let colDay = new Date(year, 9, 1);
-            while (colDay.getDay() !== 1) colDay.setDate(colDay.getDate() + 1);
-            colDay.setDate(colDay.getDate() + 7);
-            holidays[`${String(colDay.getMonth() + 1).padStart(2, '0')}-${String(colDay.getDate()).padStart(2, '0')}`] = { name: 'Columbus Day', emoji: '⛵' };
-            
-            let thanks = new Date(year, 10, 1);
-            while (thanks.getDay() !== 4) thanks.setDate(thanks.getDate() + 1);
-            thanks.setDate(thanks.getDate() + 21);
-            holidays[`${String(thanks.getMonth() + 1).padStart(2, '0')}-${String(thanks.getDate()).padStart(2, '0')}`] = { name: 'Thanksgiving', emoji: '🦃' };
-            
+            const add = (date, name, emoji) => {
+                const key = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                if (!holidays[key]) holidays[key] = [];
+                holidays[key].push({ name, emoji });
+            };
+
+            // US: MLK Jr. Day – 3rd Monday of January
+            const mlk = new Date(year, 0, 1);
+            while (mlk.getDay() !== 1) mlk.setDate(mlk.getDate() + 1);
+            mlk.setDate(mlk.getDate() + 14);
+            add(mlk, 'MLK Jr. Day', '✊');
+
+            // US: Presidents' Day – 3rd Monday of February
+            const pres = new Date(year, 1, 1);
+            while (pres.getDay() !== 1) pres.setDate(pres.getDate() + 1);
+            pres.setDate(pres.getDate() + 14);
+            add(pres, "Presidents' Day", '🇺🇸');
+
+            // CA: Good Friday – 2 days before Easter
+            const easter = calculateEaster(year);
+            const gf = new Date(easter); gf.setDate(gf.getDate() - 2);
+            add(gf, 'Good Friday', '✝️');
+
+            // CA: Easter Monday – 1 day after Easter
+            const em = new Date(easter); em.setDate(em.getDate() + 1);
+            add(em, 'Easter Monday', '🐣');
+
+            // CA: Victoria Day – last Monday on or before May 24
+            const vic = new Date(year, 4, 24);
+            while (vic.getDay() !== 1) vic.setDate(vic.getDate() - 1);
+            add(vic, 'Victoria Day', '👑');
+
+            // US: Memorial Day – last Monday of May
+            const mem = new Date(year, 4, 31);
+            while (mem.getDay() !== 1) mem.setDate(mem.getDate() - 1);
+            add(mem, 'Memorial Day', '🙏');
+
+            // US + CA: Labor / Labour Day – 1st Monday of September
+            const lab = new Date(year, 8, 1);
+            while (lab.getDay() !== 1) lab.setDate(lab.getDate() + 1);
+            add(lab, 'Labor / Labour Day', '💼');
+
+            // CA: Thanksgiving – 2nd Monday of October
+            const caTh = new Date(year, 9, 1);
+            while (caTh.getDay() !== 1) caTh.setDate(caTh.getDate() + 1);
+            caTh.setDate(caTh.getDate() + 7);
+            add(caTh, 'Thanksgiving (CA)', '🍂');
+
+            // US: Columbus Day – 2nd Monday of October (same date as CA Thanksgiving)
+            const col = new Date(caTh);
+            add(col, 'Columbus Day', '⛵');
+
+            // US: Thanksgiving – 4th Thursday of November
+            const usTh = new Date(year, 10, 1);
+            while (usTh.getDay() !== 4) usTh.setDate(usTh.getDate() + 1);
+            usTh.setDate(usTh.getDate() + 21);
+            add(usTh, 'Thanksgiving', '🦃');
+
             return holidays;
         }
 
         let variableHolidaysCache = {};
 
-        function getUSHoliday(year, month, day) {
-            if (!variableHolidaysCache[year]) {
-                variableHolidaysCache[year] = getVariableHolidays(year);
-            }
-            const monthStr = String(month).padStart(2, '0');
-            const dayStr = String(day).padStart(2, '0');
-            const key = `${monthStr}-${dayStr}`;
-            return US_HOLIDAYS[key] || variableHolidaysCache[year][key] || null;
+        function getHolidaysForDate(year, month, day) {
+            if (!variableHolidaysCache[year]) variableHolidaysCache[year] = getVariableHolidays(year);
+            const key = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            return [...(FIXED_HOLIDAYS[key] || []), ...(variableHolidaysCache[year][key] || [])];
         }
 
         // M365 Integration: Authentication & Polling
@@ -5433,46 +5474,78 @@
             const year = calDate.getFullYear();
             const month = calDate.getMonth();
             document.getElementById('cal-month-header').innerText = calDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-            
+
             const first = new Date(year, month, 1).getDay();
             const days = new Date(year, month + 1, 0).getDate();
             const grid = document.getElementById('cal-grid');
-            
+
             let html = '';
-            
+
             const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             dayNames.forEach(name => {
                 html += `<div class="font-bold text-slate-600 p-2 text-center bg-slate-200 text-xs">${name}</div>`;
             });
-            
+
             for (let i = 0; i < first; i++) {
                 html += `<div class="bg-slate-50 p-2 min-h-20 text-xs"></div>`;
             }
-            
+
             for (let d = 1; d <= days; d++) {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const holiday = getUSHoliday(year, month + 1, d);
-                const procs = patients.filter(p => p.date === dateStr && !p.archived && PROC_KEYWORDS.test(p.plan || ''));
-                
-                let dayClass = 'bg-white p-2 min-h-20 border border-slate-200 rounded text-xs';
-                let holidayHtml = '';
-                
-                if (holiday) {
-                    dayClass = 'bg-red-50 p-2 min-h-20 border-2 border-red-400 rounded text-xs';
-                    holidayHtml = `<div class="font-bold text-red-700 mb-1 pb-1 text-[9px] border-b border-red-300">${holiday.emoji} ${holiday.name}</div>`;
-                }
-                
+                const holidays = getHolidaysForDate(year, month + 1, d);
+                const shift = onCallSchedule.find(s => s.date === dateStr);
+                const dayPatients = patients.filter(p => p.date === dateStr && !p.archived);
+                const statPts = dayPatients.filter(p => p.stat === true || p.stat === 'true');
+                const procPts = dayPatients.filter(p => PROC_KEYWORDS.test(p.plan || '') && p.stat !== true && p.stat !== 'true');
+                const otherCount = dayPatients.filter(p => !PROC_KEYWORDS.test(p.plan || '') && p.stat !== true && p.stat !== 'true').length;
+
+                const isHoliday = holidays.length > 0;
+                const dow = new Date(year, month, d).getDay();
+                const isWeekend = dow === 0 || dow === 6;
+
+                const dayClass = isHoliday
+                    ? 'bg-red-50 p-2 min-h-20 border-2 border-red-400 rounded text-xs'
+                    : isWeekend
+                        ? 'bg-slate-50 p-2 min-h-20 border border-slate-100 rounded text-xs'
+                        : 'bg-white p-2 min-h-20 border border-slate-200 rounded text-xs';
+
+                const holidaysHtml = holidays.map(h =>
+                    `<div class="text-red-700 font-bold text-[9px] leading-tight">${h.emoji} ${h.name}</div>`
+                ).join('');
+
+                const dividerHtml = isHoliday ? `<div class="border-b border-red-200 my-0.5"></div>` : '';
+
+                const oncallHtml = shift
+                    ? `<div class="bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded text-[8px] font-semibold cursor-pointer hover:bg-indigo-200 truncate" onclick="globalThis.setTab('oncall')" title="On Call: ${shift.provider}">📋 ${shift.provider}</div>`
+                    : '';
+
+                const statHtml = statPts.map(p =>
+                    `<div class="font-bold bg-red-600 text-white px-1 py-0.5 rounded text-[8px] cursor-pointer hover:bg-red-700 truncate" onclick="globalThis.openModal('${p.id}')" title="STAT: ${p.name}">🔴 ${p.name}</div>`
+                ).join('');
+
+                const procHtml = procPts.map(p =>
+                    `<div class="font-bold bg-blue-100 text-blue-700 px-1 py-0.5 rounded text-[8px] cursor-pointer hover:bg-blue-200 truncate" onclick="globalThis.openModal('${p.id}')" title="${p.hospital || ''}: ${p.plan || ''}">${p.name}</div>`
+                ).join('');
+
+                const othersHtml = otherCount > 0
+                    ? `<div class="bg-slate-100 text-slate-600 px-1 py-0.5 rounded text-[8px] font-semibold cursor-pointer hover:bg-slate-200" onclick="globalThis.filterToDate('${dateStr}')">👥 ${otherCount} visit${otherCount !== 1 ? 's' : ''}</div>`
+                    : '';
+
                 html += `<div class="${dayClass}">
-                    <div class="font-bold text-slate-500 mb-1">${d}</div>
-                    ${holidayHtml}
-                    <div class="space-y-0.5">
-                        ${procs.map(p => `<div class="font-bold bg-blue-100 text-blue-700 px-1 py-0.5 rounded text-[8px] cursor-pointer hover:bg-blue-200" onclick="globalThis.openModal('${p.id}')">${p.name}</div>`).join('')}
-                    </div>
+                    <div class="font-bold text-slate-500 mb-0.5">${d}</div>
+                    ${holidaysHtml}${dividerHtml}
+                    <div class="space-y-0.5">${oncallHtml}${statHtml}${procHtml}${othersHtml}</div>
                 </div>`;
             }
-            
+
             grid.innerHTML = html;
         }
+
+        globalThis.filterToDate = (dateStr) => {
+            globalThis._searchOverride = patients.filter(p => p.date === dateStr && !p.archived);
+            globalThis.setTab('active');
+            showToast(`📅 ${dateStr}`);
+        };
 
         function renderUI() {
             if (currentTab === 'calendar') renderCalendar();
