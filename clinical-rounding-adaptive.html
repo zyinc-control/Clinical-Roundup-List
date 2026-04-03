@@ -3073,12 +3073,6 @@
             initKeyboardShortcuts();
             updateOfflineStatus();
 
-            // Restore last selected Census view mode after initial render.
-            const savedViewMode = localStorage.getItem('app-view-mode');
-            if (savedViewMode && typeof globalThis.setViewMode === 'function') {
-                setTimeout(() => globalThis.setViewMode(savedViewMode, { silent: true }), 0);
-            }
-            
             // Initialize Phase 2 (Sorting & Filtering)
             setTimeout(() => globalThis.initSortableHeaders(), 500);
         }
@@ -3361,8 +3355,8 @@
         // PHASE 3: VISUALIZATION & DISPLAY
         // ============================================================================= 
 
-        // Global state for view mode
-        let currentViewMode = localStorage.getItem('app-view-mode') || 'table';
+        // Global state for view mode — always start in table view on load
+        let currentViewMode = 'table';
 
         // Set View Mode
         globalThis.setViewMode = (mode, options = {}) => {
@@ -6311,7 +6305,8 @@
             }
             globalThis.updateTabButtonStyles(tab);
             
-            renderUI();
+            // Use the wrapped globalThis.renderUI so card/grouped views also refresh
+            globalThis.renderUI();
         };
 
         globalThis.prevMonth = () => {
