@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Clinical Rounding List - Adaptive Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -14,11 +14,13 @@
 
     <style>
         * { -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+        html { height: 100%; width: 100%; }
         body {
+            height: 100%; width: 100%; margin: 0; padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             -webkit-font-smoothing: antialiased;
             -webkit-touch-callout: none;
+            --text-scale: 1;
         }
         input, textarea, select, button { -webkit-user-select: text; user-select: text; }
         input[type="checkbox"], input[type="date"], input[type="text"] { font-size: 16px !important; }
@@ -103,7 +105,6 @@
         /* ============================================================================= */
         /* ACCESSIBILITY & TEXT SIZING */
         /* ============================================================================= */
-        body { --text-scale: 1; }
         body.text-lg { --text-scale: 1.15; }
         body.text-xl { --text-scale: 1.3; }
         body.text-xxl { --text-scale: 1.5; }
@@ -1529,6 +1530,12 @@
         .audit-action-delete { color: #ef4444; font-weight: 500; }
         .audit-action-view { color: #3b82f6; font-weight: 500; }
         .audit-action-export { color: #8b5cf6; font-weight: 500; }
+    .audit-row { cursor: pointer; }
+    .audit-row:hover > td { background: #f8fafc; }
+    .audit-detail-row > td { background: #f1f5f9; border-top: none !important; }
+    .audit-expand-icon { font-size: 0.65rem; color: #94a3b8; margin-left: 4px; display: inline-block; transition: transform 0.15s; }
+    .audit-row.expanded .audit-expand-icon { transform: rotate(90deg); }
+    body.dark-mode .audit-detail-row > td { background: #1e293b; }
 
         /* Advanced Calendar View */
         .calendar-advanced {
@@ -3697,7 +3704,7 @@
 
             const key = input.slice(0, splitIndex).trim();
             const value = input.slice(splitIndex + 1).trim();
-            const normalize = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalize = (v) => String(v || '').toLowerCase().replaceAll(/[^a-z0-9]/g, '');
             const keyNorm = normalize(key);
 
             const aliasToField = {
@@ -3853,18 +3860,49 @@
                 .replaceAll('<', '&lt;')
                 .replaceAll('>', '&gt;');
 
+            // Internal system fields — never shown as user-visible audit changes
+            const AUDIT_META_FIELDS = new Set([
+                'changenote','lastchangenote','lastchangenoteat','lastchangenoteby',
+                'createdby','notehistory','noteshistory','updatedat','visitkey','id'
+            ]);
+
+            const cleanFieldList = (raw) =>
+                (raw || '').split(',').map(f => f.trim()).filter(f => f && !AUDIT_META_FIELDS.has(f.toLowerCase())).join(', ');
+
+            const cleanSummaryStr = (raw) => {
+                if (!raw) return '';
+                return raw.split(';').map(s => s.trim()).filter(s => {
+                    const lead = s.split(/[\s_]/)[0].toLowerCase().replaceAll(/[^a-z]/g, '');
+                    return !AUDIT_META_FIELDS.has(lead);
+                }).join('; ');
+            };
+
+            const humanField = (f) => { const s = f.replaceAll(/([A-Z])/g, ' $1').trim(); return s.charAt(0).toUpperCase() + s.slice(1); };
+
             const summarizeDetails = (entry) => {
-                if (entry.detailsSummary) return entry.detailsSummary;
-                if (entry.fieldChanged) return `${entry.fieldChanged} changed`;
+                if (entry.detailsSummary) { const c = cleanSummaryStr(entry.detailsSummary); return c || '-'; }
+                if (entry.fieldChanged) { const c = cleanFieldList(entry.fieldChanged); return c ? `${c} changed` : '-'; }
                 if (entry.message) return entry.message;
                 if (entry.errorType) return `${entry.errorType}: ${entry.message || ''}`;
                 return '-';
             };
 
+            const inferContext = (entry) => {
+                const fc = String(entry.fieldChanged || '').toLowerCase().trim();
+                const act = entry.normalizedAction;
+                if (act === 'create') return 'New patient added via form';
+                if (act === 'delete') return 'Patient record deleted';
+                if (act === 'export') return `Data exported (${entry.exportType || 'file'})`;
+                if (act === 'view') return 'Patient record viewed';
+                if (fc === 'archived') return 'Archive / Restore action';
+                if (fc === 'procedurestatus') return 'Status changed (table or batch)';
+                if (fc.includes('file_upload') || fc.includes('file_delete')) return 'File attachment';
+                if (fc === 'record') return 'Record-level operation';
+                return 'Patient record updated via Edit form';
+            };
+
             try {
-                const localLogs = (typeof AuditLogger !== 'undefined' && typeof AuditLogger.getLogs === 'function')
-                    ? AuditLogger.getLogs().map((entry) => ({ ...entry, source: 'local' }))
-                    : [];
+                const localLogs = AuditLogger?.getLogs?.().map((entry) => ({ ...entry, source: 'local' })) ?? [];
 
                 let remoteLogs = [];
                 if (typeof globalThis.m365GetAuditLogs === 'function') {
@@ -3902,29 +3940,62 @@
 
                 logs.sort((a, b) => new Date(b.normalizedTimestamp) - new Date(a.normalizedTimestamp));
 
+                // Drop entries where every changed field is an internal meta field
+                logs = logs.filter(entry => {
+                    if (entry.normalizedAction !== 'update') return true;
+                    const fc = String(entry.fieldChanged || '').trim();
+                    if (!fc) return true;
+                    const fields = fc.split(',').map(f => f.trim().toLowerCase()).filter(Boolean);
+                    return fields.length === 0 || fields.some(f => !AUDIT_META_FIELDS.has(f));
+                });
+
                 if (!logs.length) {
                     tableBody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-500">No audit logs found for the selected filters.</td></tr>';
                     return;
                 }
 
-                tableBody.innerHTML = logs.slice(0, 500).map((entry) => {
+                tableBody.innerHTML = logs.slice(0, 500).map((entry, idx) => {
+                    const rowId = `arow-${idx}`;
                     const when = entry.normalizedTimestamp ? new Date(entry.normalizedTimestamp).toLocaleString() : '-';
-                    const user = entry.userId || entry.userIdentity || 'unknown';
+                    const user = safeText(entry.userId || entry.userIdentity || 'unknown');
                     const action = entry.normalizedAction;
                     const recordId = entry.recordId || entry.patientId || '-';
                     const details = summarizeDetails(entry);
-                    // Build clickable patient link if recordId matches a known patient
                     const matchedPatient = recordId !== '-' ? patients.find(p => p.id === recordId) : null;
+                    const patientLabel = matchedPatient ? safeText(matchedPatient.name || recordId) : safeText(recordId);
                     const recordCell = matchedPatient
-                        ? `<button class="text-blue-700 font-semibold hover:underline text-xs text-left" onclick="globalThis.openModal('${safeText(matchedPatient.id)}')" title="Open: ${safeText(matchedPatient.name)}">${safeText(matchedPatient.name || recordId)}</button>`
+                        ? `<button class="text-blue-700 font-semibold hover:underline text-xs text-left" onclick="event.stopPropagation();globalThis.openModal('${safeText(matchedPatient.id)}')" title="Open: ${safeText(matchedPatient.name)}">${patientLabel}</button>`
                         : `<span class="text-slate-500 text-xs">${safeText(recordId)}</span>`;
+
+                    const cleanedFields = cleanFieldList(entry.fieldChanged || '');
+                    const fieldPills = cleanedFields
+                        ? cleanedFields.split(',').map(f => f.trim()).filter(Boolean)
+                            .map(f => `<span class="inline-block bg-white border border-slate-300 text-slate-700 text-xs px-1.5 py-0.5 rounded mr-1 mb-1">${safeText(humanField(f))}</span>`).join('')
+                        : '';
+                    const context = safeText(inferContext(entry));
+                    const patientInfo = matchedPatient
+                        ? `${safeText(matchedPatient.name || '—')} &nbsp;·&nbsp; MRN&nbsp;${safeText(matchedPatient.mrn || '—')} &nbsp;·&nbsp; ${safeText(matchedPatient.hospital || '—')}`
+                        : `Record ID: ${safeText(recordId)}`;
+                    const src = safeText(entry.source || 'local');
+
                     return `
-                        <tr>
+                        <tr class="audit-row" id="${rowId}" onclick="this.classList.toggle('expanded');document.getElementById('${rowId}-d').classList.toggle('hidden');">
                             <td>${safeText(when)}</td>
-                            <td>${safeText(user)}</td>
+                            <td class="text-xs">${user}</td>
                             <td><span class="${actionClass(action)}">${safeText(action)}</span></td>
                             <td>${recordCell}</td>
-                            <td>${safeText(details)}</td>
+                            <td>${safeText(details)} <span class="audit-expand-icon">&#9654;</span></td>
+                        </tr>
+                        <tr id="${rowId}-d" class="audit-detail-row hidden">
+                            <td colspan="5" class="px-4 py-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
+                                    <div><span class="font-semibold text-slate-600">Patient:</span> <span class="text-slate-800">${patientInfo}</span></div>
+                                    <div><span class="font-semibold text-slate-600">Where:</span> <span class="text-slate-800">${context}</span></div>
+                                    ${fieldPills ? `<div class="sm:col-span-2"><span class="font-semibold text-slate-600">Fields changed:</span><span class="ml-2">${fieldPills}</span></div>` : ''}
+                                    <div><span class="font-semibold text-slate-600">Source:</span> <span class="text-slate-500 text-xs">${src}</span></div>
+                                    ${entry.source === 'local' ? '<div class="text-xs text-amber-600 sm:col-span-2">&#9888; In-session only — changes not persisted to SharePoint yet</div>' : ''}
+                                </div>
+                            </td>
                         </tr>
                     `;
                 }).join('');
@@ -3986,7 +4057,7 @@
             }
 
             const statusBadgeClass = { 'In-Progress': 'bg-blue-100 text-blue-700', 'Completed': 'bg-green-100 text-green-700', 'Post-Op': 'bg-teal-100 text-teal-700', 'Scheduled': 'bg-amber-100 text-amber-700', 'Pre-Op': 'bg-orange-100 text-orange-700', 'To-Do': 'bg-slate-100 text-slate-600' };
-            const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const esc = v => String(v == null ? '' : v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
             const rows = procs.map(p => {
                 const typeBadges = detectProcTypes(p).map(t =>
@@ -4053,7 +4124,7 @@
                 return;
             }
 
-            const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const esc = v => String(v == null ? '' : v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
             const onCall = onCallSchedule.find(s => s.date === dateVal);
             const shiftLabel = (startTime || endTime)
                 ? `${startTime || '?'} – ${endTime || '?'}`
@@ -4213,11 +4284,11 @@
                 const mrnKey  = p.mrn  || '';
                 if (nameKey && !seen.has(nameKey) && nameKey.toLowerCase().includes(input)) {
                     seen.add(nameKey);
-                    opts.push(`<option value="${nameKey.replace(/"/g, '&quot;')}">`);
+                    opts.push(`<option value="${nameKey.replaceAll('"', '&quot;')}">`);
                 }
                 if (mrnKey && !seen.has(mrnKey) && mrnKey.toLowerCase().includes(input)) {
                     seen.add(mrnKey);
-                    opts.push(`<option value="${mrnKey.replace(/"/g, '&quot;')}">`);
+                    opts.push(`<option value="${mrnKey.replaceAll('"', '&quot;')}">`);
                 }
             });
             dl.innerHTML = opts.slice(0, 20).join('');
@@ -4229,7 +4300,7 @@
 
             const mrnRaw = (document.getElementById('timeline-filter-mrn')?.value || '').trim();
             const fromDate = document.getElementById('timeline-filter-from')?.value || '';
-            const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const esc = v => String(v == null ? '' : v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
             const statusColors = {
                 'In-Progress': { bg: '#dbeafe', text: '#1d4ed8', label: '🔵 In-Progress' },
@@ -4388,7 +4459,7 @@
             // Show print preview in the page
             if (preview) {
                 const title = { daily: 'Daily Rounding', surgical: 'Surgical Procedures', 'patient-summary': 'Patient Summary', 'hospital-census': 'Hospital Census', 'shift-handoff': 'Shift Handoff' }[reportType] || 'Report';
-                const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const esc = v => String(v == null ? '' : v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
                 const rows = data.map(p => `
                     <tr>
                         <td>${esc(p.date||'')}</td>
@@ -7931,7 +8002,7 @@
                     <h2 class="text-lg font-bold">Record Entry</h2>
                     <p class="text-xs text-slate-500 mt-0.5">💡 Press Enter or Ctrl+S to save • Esc to close</p>
                 </div>
-                <button onclick="globalThis.closeModal()" class="text-2xl">×</button>
+                <button onclick="globalThis.closeModal()" aria-label="Close" class="w-9 h-9 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-500 hover:text-white transition-colors text-xl font-bold leading-none">×</button>
             </div>
             
             <form id="patient-form" novalidate onsubmit="return globalThis.savePatient(event);" class="flex-1 overflow-y-auto flex flex-col min-h-0">

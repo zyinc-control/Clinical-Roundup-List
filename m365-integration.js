@@ -523,9 +523,11 @@ async function api_fetchAuditLogs(filters = {}) {
                 fieldChanged: detailsObj?.fieldChanged || '',
                 message: detailsObj?.message || '',
                 errorType: detailsObj?.errorType || '',
-                detailsSummary: detailsObj?.fieldChanged
-                    ? `${detailsObj.fieldChanged} changed`
-                    : (detailsObj?.message || detailsRaw || '-'),
+                detailsSummary: detailsObj?.detailsSummary
+                    || (detailsObj?.fieldChanged ? `${detailsObj.fieldChanged} changed` : '')
+                    || detailsObj?.message
+                    || detailsRaw
+                    || '-',
                 details: detailsRaw,
                 source: 'm365'
             };
