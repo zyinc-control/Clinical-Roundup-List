@@ -318,6 +318,9 @@
         
         .batch-operations.active {
             display: flex;
+            position: sticky;
+            top: 0;
+            z-index: 20;
         }
         
         .batch-count {
@@ -2818,15 +2821,6 @@
         // BATCH OPERATIONS
         // ============================================================================= 
 
-        // Toggle All Selection
-        globalThis.toggleAllSelection = (event) => {
-            const checked = event.target.checked;
-            document.querySelectorAll('input[data-patient-checkbox]').forEach(cb => {
-                cb.checked = checked;
-            });
-            updateBatchOpCount();
-        };
-
         // Update Batch Operation Count
         function updateBatchOpCount() {
             const checkedCount = document.querySelectorAll('input[data-patient-checkbox]:checked').length;
@@ -2838,10 +2832,12 @@
             const batchOps = document.getElementById('batch-operations');
             const batchCount = document.getElementById('batch-count');
             const batchPrint = document.getElementById('batch-print-selected');
+
+            if (!batchOps) return;
             
             if (checkedCount > 0) {
                 batchOps.classList.add('active');
-                batchCount.textContent = `${checkedCount} selected`;
+                if (batchCount) batchCount.textContent = `${checkedCount} selected`;
                 if (batchPrint) batchPrint.disabled = false;
             } else {
                 batchOps.classList.remove('active');
@@ -6593,12 +6589,28 @@
             renderUI();
         };
         
-        globalThis.toggleAllSelection = (e) => { 
-            const filtered = getFilteredData(); 
-            if(e.target.checked) filtered.forEach(p=>selectedPatientIds.add(p.id)); 
-            else filtered.forEach(p=>selectedPatientIds.delete(p.id)); 
-            renderUI(); 
-            updateHandoffButton(); 
+        globalThis.toggleAllSelection = (e) => {
+            const filtered = getFilteredData();
+            if (e.target.checked) filtered.forEach(p => selectedPatientIds.add(p.id));
+            else filtered.forEach(p => selectedPatientIds.delete(p.id));
+            renderUI();
+            // Use selectedPatientIds.size directly — DOM-based counting is unreliable
+            // immediately after innerHTML replacement in renderUI()
+            const count = selectedPatientIds.size;
+            const batchOps = document.getElementById('batch-operations');
+            const batchCount = document.getElementById('batch-count');
+            const batchPrint = document.getElementById('batch-print-selected');
+            if (batchOps) {
+                if (count > 0) {
+                    batchOps.classList.add('active');
+                    if (batchCount) batchCount.textContent = `${count} selected`;
+                    if (batchPrint) batchPrint.disabled = false;
+                } else {
+                    batchOps.classList.remove('active');
+                    if (batchPrint) batchPrint.disabled = true;
+                }
+            }
+            updateHandoffButton();
         };
 
         function updateHandoffButton() { 
