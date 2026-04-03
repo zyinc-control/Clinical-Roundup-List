@@ -73,7 +73,7 @@ try {
 
 **Current State**: Relaxed mode. When adding features, consider where compliance hooks will attach (e.g., mask sensitive fields, log access events, enforce role checks via RBAC layer).
 
-**Snyk Scanning**: See `.github/instructions/snyk_rules.instructions.md`. Run Snyk on any new JavaScript; fix identified issues before shipping.
+**Security Validation**: Run appropriate security and code-quality checks before shipping.
 
 ## Common Modifications
 

@@ -139,7 +139,7 @@ This is perfect for testing without M365 setup!
 - Fallback to local mode if M365 unavailable
 - Graceful degradation
 
-✅ Snyk security scanning ready:
+✅ Security validation ready:
 - No hardcoded secrets (uses placeholders)
 - All MSAL calls from browser (delegated permissions)
 - Graph API calls properly authenticated

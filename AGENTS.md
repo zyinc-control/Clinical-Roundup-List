@@ -758,7 +758,7 @@ Result: No changes, duplicate creation prevented
 2. **✓ Import New Only** (Green) - Add new, skip duplicates
 3. **✗ Cancel** (Gray) - Do nothing
 
-**Security Scan**: Snyk Code Scan passed with 0 high/critical issues
+**Security Scan**: Security scan passed with 0 high/critical issues
 
 **Documentation Created**: `BULK_IMPORT_PREVIEW_FEATURE.md` (complete technical guide)
 
@@ -903,7 +903,7 @@ MRN 12345 + 2025-01-17 = VisitKey "12345|2025-01-17" (different visit)
 | Import All replaces duplicates | ✅ | Verified in code |
 | Import New Only skips duplicates | ✅ | Verified in code |
 | STAT card high contrast | ✅ | Visual inspection |
-| Security scan passed | ✅ | Snyk 0 issues |
+| Security scan passed | ✅ | 0 high/critical issues |
 
 ### Documentation Updates
 

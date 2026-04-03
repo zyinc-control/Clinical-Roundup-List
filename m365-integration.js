@@ -107,6 +107,21 @@ function parseBoolish(value) {
     return false;
 }
 
+function normalizeDateFromSharePoint(value) {
+    if (!value) return '';
+    const text = String(value).trim();
+    // Already normalized for date inputs and calendar comparisons.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+    const parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime())) return text;
+
+    const y = parsed.getUTCFullYear();
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
 function initializeMSAL() {
     try {
         msalInstance = new msal.PublicClientApplication({
@@ -414,22 +429,59 @@ async function graphRequest(endpoint, method = 'GET', body = null) {
 // -----------------------------------------------------------------------------
 
 async function api_logAuditEvent(event) {
+    const deriveAuditAction = (entry) => {
+        const type = String(entry?.type || '').toLowerCase();
+        const action = String(entry?.action || '').toLowerCase();
+        const fieldChanged = String(entry?.fieldChanged || '').toLowerCase();
+
+        if (action === 'create' || (type === 'data_change' && fieldChanged === 'record' && entry?.oldValue == null)) return 'create';
+        if (action === 'delete') return 'delete';
+        if (action === 'view' || type === 'patient_access' || type === 'access') return 'view';
+        if (action === 'export' || type === 'export') return 'export';
+        if (type === 'data_change' || action === 'update' || fieldChanged) return 'update';
+        if (action === 'auth' || type === 'auth') return 'auth';
+        return 'update';
+    };
+
     try {
         const listId = M365_CONFIG.sharepoint.lists.auditLogs;
         const siteId = M365_CONFIG.sharepoint.siteId;
         const fieldsMap = M365_CONFIG.sharepoint.auditFields || {};
+        const normalizedAction = deriveAuditAction(event);
+        const detailsJson = JSON.stringify(event || {});
 
-        const fields = {
+        const fullFields = {
             Title: event.type || 'audit',
             [fieldsMap.userIdentity || 'UserIdentity']: event.userId || 'unknown',
-            [fieldsMap.actionType || 'ActionType']: event.action || event.type || 'event',
+            [fieldsMap.actionType || 'ActionType']: normalizedAction,
             [fieldsMap.recordId || 'RecordId']: event.recordId || event.patientId || '',
-            [fieldsMap.details || 'Details']: JSON.stringify(event),
+            [fieldsMap.details || 'Details']: detailsJson,
             [fieldsMap.timestamp || 'Timestamp']: event.timestamp || new Date().toISOString()
         };
 
         const endpoint = `/sites/${siteId}/lists/${listId}/items`;
-        await graphRequest(endpoint, 'POST', { fields });
+        const payloadCandidates = [
+            { fields: fullFields },
+            {
+                fields: {
+                    Title: event.type || 'audit',
+                    [fieldsMap.details || 'Details']: detailsJson,
+                    [fieldsMap.timestamp || 'Timestamp']: event.timestamp || new Date().toISOString()
+                }
+            },
+            { fields: { Title: `${normalizedAction}: ${event.recordId || event.patientId || 'n/a'}` } }
+        ];
+
+        let lastErr = null;
+        for (const candidate of payloadCandidates) {
+            try {
+                await graphRequest(endpoint, 'POST', candidate);
+                return;
+            } catch (err) {
+                lastErr = err;
+            }
+        }
+        throw lastErr || new Error('Unknown audit log write failure');
     } catch (err) {
         console.warn('Audit log write failed:', err.message || err);
     }
@@ -445,6 +497,10 @@ async function api_fetchAuditLogs(filters = {}) {
 
         const logs = (response.value || []).map((item) => {
             const fields = item.fields || {};
+            const titleText = String(fields.Title || '');
+            const titleParts = titleText.split(':');
+            const titleAction = (titleParts[0] || '').trim().toLowerCase();
+            const titleRecordId = (titleParts[1] || '').trim();
             const detailsRaw = fields[fieldsMap.details || 'Details'] || '';
             let detailsObj = null;
             try {
@@ -460,9 +516,9 @@ async function api_fetchAuditLogs(filters = {}) {
                 timestamp: fields[fieldsMap.timestamp || 'Timestamp'] || item.createdDateTime || '',
                 userId: fields[fieldsMap.userIdentity || 'UserIdentity'] || detailsObj?.userId || 'unknown',
                 userIdentity: fields[fieldsMap.userIdentity || 'UserIdentity'] || detailsObj?.userId || 'unknown',
-                action: fields[fieldsMap.actionType || 'ActionType'] || detailsObj?.action || detailsObj?.type || 'event',
-                type: detailsObj?.type || fields[fieldsMap.actionType || 'ActionType'] || 'event',
-                recordId: fields[fieldsMap.recordId || 'RecordId'] || detailsObj?.recordId || detailsObj?.patientId || '',
+                action: fields[fieldsMap.actionType || 'ActionType'] || detailsObj?.action || detailsObj?.type || titleAction || 'event',
+                type: detailsObj?.type || fields[fieldsMap.actionType || 'ActionType'] || titleAction || 'event',
+                recordId: fields[fieldsMap.recordId || 'RecordId'] || detailsObj?.recordId || detailsObj?.patientId || titleRecordId || '',
                 patientId: detailsObj?.patientId || fields[fieldsMap.recordId || 'RecordId'] || '',
                 fieldChanged: detailsObj?.fieldChanged || '',
                 message: detailsObj?.message || '',
@@ -525,7 +581,7 @@ async function api_fetchPatients(dateFilter = null) {
             priority: statValue,
             id: item.id,
             room: item.fields.Room || '',
-            date: item.fields.Date || '',
+            date: normalizeDateFromSharePoint(item.fields.Date || ''),
             name: item.fields.Name || item.fields.Title || '',
             createdBy: item.fields.CreatedBy || item.fields.Created_x0020_By || '',
             dob: item.fields.DateofBirth || item.fields.DOB || '',
@@ -944,7 +1000,7 @@ async function api_fetchOnCallSchedule() {
                 .filter(Boolean);
             return {
                 id: item.id,
-                date: item.fields.Date || '',
+                date: normalizeDateFromSharePoint(item.fields.Date || ''),
                 provider: providers[0] || providerRaw || '',
                 provider2: providers[1] || '',
                 provider3: providers[2] || '',

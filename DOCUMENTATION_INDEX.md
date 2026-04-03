@@ -165,7 +165,6 @@ These were created earlier and are still valid:
 - `USERGUIDE.md` - User manual
 - `AGENTS.md` - Architecture log
 - `.github/copilot-instructions.md` - Development guidelines
-- `.github/instructions/snyk_rules.instructions.md` - Security guidelines
 
 ---
 

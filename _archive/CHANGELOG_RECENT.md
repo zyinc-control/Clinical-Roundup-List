@@ -226,7 +226,7 @@ Row 5+: Patient records (grouped by hospital section)
 - [ ] Print-friendly CSS
 
 ## Compliance Notes
-- ✅ Follows .github/instructions/snyk_rules.instructions.md (no new security issues introduced)
+- ✅ Security checks completed (no new high-risk issues introduced)
 - ✅ No external dependencies added (uses existing PapaParse for validation)
 - ✅ Data validation in place (rejects incomplete rows)
 - ✅ Error handling with user feedback (toast messages)
