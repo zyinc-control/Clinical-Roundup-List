@@ -4715,6 +4715,13 @@
             return modal?.dataset.findingsEditable !== 'false';
         }
 
+        function getMissingFindingDates(selectedCodes = []) {
+            return selectedCodes.filter((code) => {
+                const dateInput = document.querySelector(`input.findings-date[data-code="${code}"]`);
+                return dateInput && !String(dateInput.value || '').trim();
+            });
+        }
+
         function lockBackfilledFields(locked) {
             const lockedIds = [
                 'f-room', 'f-date', 'f-hospital', 'f-name', 'f-dob', 'f-mrn',
@@ -6011,6 +6018,18 @@
             }
             
             try {
+                const missingFindingDates = getMissingFindingDates(findingsCodes);
+                if (missingFindingDates.length) {
+                    const firstMissingDateInput = document.querySelector(`input.findings-date[data-code="${missingFindingDates[0]}"]`);
+                    if (firstMissingDateInput) {
+                        firstMissingDateInput.style.display = 'inline-block';
+                        firstMissingDateInput.disabled = false;
+                        firstMissingDateInput.focus();
+                    }
+                    showToast('⚠️ Add a date for each selected finding before saving');
+                    return false;
+                }
+
                 const editId = document.getElementById('edit-id').value;
                 const changeActionLabel = editId ? 'update' : 'create';
                 const changeNote = await getRequiredChangeNote(changeActionLabel);
