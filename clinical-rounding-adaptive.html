@@ -806,24 +806,17 @@
             gap: 1rem;
             padding: 1rem;
         }
-        
-        .card-view.active {
-            display: grid;
-        }
-        
-        .patient-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            min-height: 360px;
-            max-height: 420px;
-        }
-        
+            if (mode === 'table') {
+                tableView?.classList.add('active');
+            } else if (mode === 'card') {
+                cardView?.classList.add('active');
+            } else if (mode === 'grouped') {
+                groupedView?.classList.add('active');
+            }
+
+            if (tableContainer) tableContainer.style.display = mode === 'table' ? '' : 'none';
+            if (cardContainer) cardContainer.classList.toggle('active', mode === 'card');
+            if (groupedContainer) groupedContainer.style.display = mode === 'grouped' ? '' : 'none';
         body.dark-mode .patient-card {
             background: #2a2a2a;
             border-color: #444;
@@ -2746,6 +2739,11 @@
             if (searchBox) searchBox.value = '';
             globalThis._searchQueryText = null;
             globalThis._quickFilterType = null;
+            globalThis._quickFilterDate = null;
+            globalThis.forceRefresh();
+            showToast('🔍 Search cleared');
+        };
+
         // ============================================================================= 
 
         // Initialize keyboard shortcuts
@@ -3376,24 +3374,18 @@
             const groupedContainer = document.getElementById('grouped-view-container');
             
             [tableView, cardView, groupedView].forEach(btn => btn?.classList.remove('active'));
-            
+
             if (mode === 'table') {
                 tableView?.classList.add('active');
-                if (tableContainer) tableContainer.style.display = '';
-                if (cardContainer) cardContainer.classList.remove('active');
-                if (groupedContainer) groupedContainer.style.display = 'none';
             } else if (mode === 'card') {
                 cardView?.classList.add('active');
-                if (tableContainer) tableContainer.style.display = 'none';
-                if (groupedContainer) groupedContainer.style.display = 'none';
-                globalThis.renderCardView();
             } else if (mode === 'grouped') {
                 groupedView?.classList.add('active');
-                if (tableContainer) tableContainer.style.display = 'none';
-                if (cardContainer) cardContainer.classList.remove('active');
-                if (groupedContainer) groupedContainer.style.display = '';
-                globalThis.renderGroupedView();
             }
+
+            if (tableContainer) tableContainer.style.display = mode === 'table' ? '' : 'none';
+            if (cardContainer) cardContainer.classList.toggle('active', mode === 'card');
+            if (groupedContainer) groupedContainer.style.display = mode === 'grouped' ? '' : 'none';
             
             // Force refresh on view mode change
             globalThis.forceRefresh();
@@ -6451,9 +6443,17 @@
         };
 
         function renderUI() {
+            const tableContainer = document.querySelector('#table-section .overflow-x-auto');
+            const cardContainer = document.getElementById('card-view-container');
+            const groupedContainer = document.getElementById('grouped-view-container');
+
             if (currentTab === 'calendar') {
                 renderCalendar();
             } else {
+                if (tableContainer) tableContainer.style.display = currentViewMode === 'table' ? '' : 'none';
+                if (cardContainer) cardContainer.classList.toggle('active', currentViewMode === 'card');
+                if (groupedContainer) groupedContainer.style.display = currentViewMode === 'grouped' ? '' : 'none';
+
                 renderMainTable();
                 if (typeof currentViewMode !== 'undefined') {
                     if (currentViewMode === 'card') globalThis.renderCardView?.();
