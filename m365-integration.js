@@ -1007,7 +1007,7 @@ async function api_fetchOnCallSchedule() {
                 .map(v => v.trim())
                 .filter(Boolean);
             return {
-                id: item.id,
+                id: normalizeSharePointListItemId(item.id) || String(item.id || ''),
                 date: normalizeDateFromSharePoint(item.fields.Date || ''),
                 provider: providers[0] || providerRaw || '',
                 provider2: providers[1] || '',
@@ -1025,7 +1025,40 @@ async function api_fetchOnCallSchedule() {
 }
 
 function isSharePointListItemId(value) {
-    return /^\d+$/.test(String(value || '').trim());
+    return normalizeSharePointListItemId(value) !== '';
+}
+
+function normalizeSharePointListItemId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    // Ignore likely client-generated timestamps (e.g. Date.now())
+    if (/^\d{10,}$/.test(raw)) return '';
+
+    if (/^\d+$/.test(raw)) return raw;
+
+    // Graph occasionally surfaces IDs like "3-<suffix>"; list item endpoints need "3".
+    const prefixed = raw.match(/^(\d+)-/);
+    if (prefixed && prefixed[1]) return prefixed[1];
+
+    return '';
+}
+
+async function resolveOnCallShiftItemIdByDate(siteId, listId, shiftDate) {
+    if (!shiftDate) return '';
+
+    try {
+        const response = await graphRequest(`/sites/${siteId}/lists/${listId}/items?expand=fields&$top=500`);
+        const match = (response.value || []).find((item) => {
+            const normalizedDate = normalizeDateFromSharePoint(item.fields?.Date || '');
+            return normalizedDate === shiftDate;
+        });
+
+        return normalizeSharePointListItemId(match?.id);
+    } catch (err) {
+        console.warn('Failed resolving on-call item id by date:', err?.message || err);
+        return '';
+    }
 }
 
 async function api_saveOnCallShift(shiftData) {
@@ -1040,30 +1073,37 @@ async function api_saveOnCallShift(shiftData) {
         Provider: providerValues.join(' | '),
         Hospitals: shiftData.hospitals || ''
     };
-    
-    if (isSharePointListItemId(shiftData.id)) {
-        const endpoint = `/sites/${siteId}/lists/${listId}/items/${shiftData.id}/fields`;
+
+    let normalizedItemId = normalizeSharePointListItemId(shiftData.id);
+    if (!normalizedItemId) {
+        normalizedItemId = await resolveOnCallShiftItemIdByDate(siteId, listId, shiftData.date);
+    }
+
+    if (normalizedItemId) {
+        const endpoint = `/sites/${siteId}/lists/${listId}/items/${normalizedItemId}/fields`;
         await graphRequest(endpoint, 'PATCH', fields);
-        return { ...shiftData, id: String(shiftData.id) };
+        return { ...shiftData, id: normalizedItemId };
     }
 
     const endpoint = `/sites/${siteId}/lists/${listId}/items`;
     const createdItem = await graphRequest(endpoint, 'POST', { fields: fields });
+    const createdId = normalizeSharePointListItemId(createdItem?.id);
     return {
         ...shiftData,
-        id: createdItem?.id ? String(createdItem.id) : String(shiftData.id || '')
+        id: createdId || String(createdItem?.id || shiftData.id || '')
     };
 }
 
 async function api_deleteOnCallShift(shiftId) {
-    if (!isSharePointListItemId(shiftId)) {
+    const normalizedItemId = normalizeSharePointListItemId(shiftId);
+    if (!normalizedItemId) {
         console.warn('Skipping M365 delete for non-SharePoint on-call shift id:', shiftId);
         return;
     }
 
     const listId = M365_CONFIG.sharepoint.lists.onCallSchedule;
     const siteId = M365_CONFIG.sharepoint.siteId;
-    const endpoint = `/sites/${siteId}/lists/${listId}/items/${shiftId}`;
+    const endpoint = `/sites/${siteId}/lists/${listId}/items/${normalizedItemId}`;
     
     await graphRequest(endpoint, 'DELETE');
 }

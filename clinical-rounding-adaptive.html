@@ -3508,46 +3508,6 @@
             document.getElementById('quick-stats').innerHTML = html;
         };
 
-        // Render Patient Summary Statistics
-        globalThis.renderPatientSummary = () => {
-            const filtered = getFilteredData();
-            
-            const lostmean = filtered.length > 0 
-                ? Math.round(filtered.reduce((sum, p) => sum + (globalThis.calculateLOS(p.date) || 0), 0) / filtered.length)
-                : 0;
-            
-            const statCount = filtered.filter(p => p.stat === true || p.stat === 'true').length;
-            const procedureCount = filtered.filter(p => isSurgicalCase(p)).length;
-            const ageAvg = filtered.some(p => p.dob) 
-                ? Math.round(filtered.filter(p => p.dob).reduce((sum, p) => sum + (globalThis.calculateAge(p.dob) || 0), 0) / filtered.filter(p => p.dob).length)
-                : '-';
-            
-            const html = `
-                <div class="summary-item">
-                    <div class="summary-value">${filtered.length}</div>
-                    <div class="summary-label">Total Patients</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-value">${statCount}</div>
-                    <div class="summary-label">STAT Cases 🔴</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-value">${procedureCount}</div>
-                    <div class="summary-label">Procedures</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-value">${lostmean}</div>
-                    <div class="summary-label">Avg Days Admitted</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-value">${ageAvg}</div>
-                    <div class="summary-label">Avg Age</div>
-                </div>
-            `;
-            
-            document.getElementById('patient-summary').innerHTML = html;
-        };
-
         function getAnalyticsDataset() {
             const activePatients = patients.filter(p => !p.archived);
             const procedurePatients = activePatients.filter(p => isSurgicalCase(p));
@@ -5299,7 +5259,7 @@
     </script>
 
     <!-- Cache-busted to avoid stale JS when GitHub Pages/CDN is cached -->
-    <script src="m365-integration.js?v=2026-04-03T19:30"></script>
+    <script src="m365-integration.js?v=2026-04-08T14:40"></script>
 
     <script>
         // Global state for the application
@@ -5581,16 +5541,23 @@
                     console.log('ℹ️  Required:');
                     console.log('    - clientId:', hasValidClientId ? '✅' : '❌ set to YOUR_CLIENT_ID_HERE');
                     console.log('    - siteId:', hasValidSiteId ? '✅' : '❌ set to YOUR_SITE_ID_HERE');
-                    showLoginPrompt();
+                    toggleAuthUIElements();
+                    renderUI();
                 } else {
                     console.error('❌ initializeMSAL function not available');
                     isConnected = false;
                     useM365 = false;
+                    isAuthenticated = false;
+                    toggleAuthUIElements();
+                    renderUI();
                 }
             } else {
                 console.error('❌ M365_CONFIG not found - m365-integration.js may not have loaded');
                 isConnected = false;
                 useM365 = false;
+                isAuthenticated = false;
+                toggleAuthUIElements();
+                renderUI();
             }
             console.groupEnd();
         });
@@ -5648,6 +5615,10 @@
             }
             console.groupEnd();
         };
+
+        function isLocalModeActive() {
+            return useM365 === false;
+        }
         
         // Toggle UI elements based on authentication
         function toggleAuthUIElements() {
@@ -5668,15 +5639,21 @@
                 statsArea: !!statsArea,
                 tabNav: !!tabNav
             });
+
+            const hasAppAccess = isAuthenticated || isLocalModeActive();
             
-            if (isAuthenticated) {
+            if (hasAppAccess) {
                 // Show import and add buttons
                 if (importBtn) importBtn.style.display = '';
                 if (addBtn) addBtn.style.display = '';
                 if (loginBtn) {
-                    loginBtn.style.display = '';
-                    loginBtn.textContent = '🔓 Logout';
-                    loginBtn.onclick = () => globalThis.m365Logout && globalThis.m365Logout();
+                    if (isLocalModeActive()) {
+                        loginBtn.style.display = 'none';
+                    } else {
+                        loginBtn.style.display = '';
+                        loginBtn.textContent = '🔓 Logout';
+                        loginBtn.onclick = () => globalThis.m365Logout && globalThis.m365Logout();
+                    }
                 }
                 
                 // Show content, stats, and tabs
@@ -5725,6 +5702,12 @@
         
         // Show login prompt when not authenticated
         function showLoginPrompt() {
+            if (isLocalModeActive()) {
+                const existingPrompt = document.getElementById('login-prompt');
+                if (existingPrompt) existingPrompt.style.display = 'none';
+                return;
+            }
+
             let loginPrompt = document.getElementById('login-prompt');
             if (!loginPrompt) {
                 // Create login prompt if it doesn't exist
@@ -6524,7 +6507,6 @@
             globalThis.updateTabButtonStyles?.(currentTab);
 
             setTimeout(() => {
-                globalThis.renderPatientSummary?.();
                 globalThis.initSortableHeaders?.();
             }, 50);
         }
@@ -7712,9 +7694,6 @@
             </div>
 
             <div id="table-section" class="h-full">
-                <!-- Patient Summary Statistics -->
-                <div id="patient-summary" class="patient-summary"></div>
-
                 <!-- View Toggle Buttons -->
                 <div class="view-toggle">
                     <button class="view-btn active" onclick="globalThis.setViewMode('table')" title="Standard row-based census table.">📊 Table View</button>
