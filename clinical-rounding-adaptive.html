@@ -5572,7 +5572,7 @@
                         isAuthenticated = false;
                         showLoginPrompt();
                     }
-                } else {
+                } else if (useM365 === false) {
                     // Local mode
                     isConnected = false;
                     useM365 = false;
