@@ -39,12 +39,97 @@
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
         }
+
+        .batch-operations {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            position: fixed;
+            left: 50%;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+            transform: translateX(-50%) translateY(1rem);
+            width: min(calc(100% - 1rem), 920px);
+            padding: 0.85rem 1rem;
+            background: rgba(239, 246, 255, 0.97);
+            border: 1px solid #93c5fd;
+            border-radius: 1rem;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            z-index: 60;
+        }
+
+        .batch-operations.active {
+            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .batch-eyebrow {
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #1d4ed8;
+            margin-bottom: 0.15rem;
+        }
+
+        .batch-count {
+            flex-shrink: 0;
+            padding: 0.5rem 0.95rem;
+            background: #3b82f6;
+            color: white;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .batch-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .batch-dismiss {
+            margin-left: auto;
+        }
+
+        .cross-out-target {
+            text-decoration: line-through;
+            text-decoration-thickness: 2px;
+            opacity: 0.62;
+        }
+
+        .crossed-out-row {
+            background: #f8fafc;
+        }
         
         .no-scroll { overflow: hidden !important; }
         
         @supports (-webkit-touch-callout: none) {
             /* iOS */
             body { padding-bottom: env(safe-area-inset-bottom); }
+        }
+
+        @media (max-width: 640px) {
+            .batch-operations {
+                width: calc(100% - 0.75rem);
+                padding: 0.75rem;
+            }
+
+            .batch-actions {
+                width: 100%;
+            }
+
+            .batch-dismiss {
+                margin-left: 0;
+            }
         }
     </style>
     
@@ -751,7 +836,7 @@
 
             if (editIdInput) editIdInput.value = id || "";
             if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-            if (statusInput) statusInput.value = 'To-Do';
+            if (statusInput) statusInput.value = DEFAULT_RECORD_STATUS;
             if (priorityInput) priorityInput.checked = false;
             
             // Auto-fill Created By with current user for new records
@@ -776,7 +861,7 @@
                         document.getElementById('f-findings-values').value = p.findingsValues ? JSON.stringify(p.findingsValues) : "";
                     }
                     if (priorityInput) priorityInput.checked = p.priority || false;
-                    if (statusInput) statusInput.value = p.procedureStatus || 'To-Do';
+                    if (statusInput) statusInput.value = getSafeConfiguredStatus(p.procedureStatus);
                     
                     // Show who created the record when editing
                     const createdByField = document.getElementById('f-created-by');
@@ -890,11 +975,117 @@
         let rawImportData = null; 
         let calDate = new Date();
         let isConnected = false;
+        const STATUS_OPTIONS = [
+            { value: 'NEW CONSULT', badge: 'NC' },
+            { value: 'SURGICAL PATIENT (SAME DAY SURGERY)', badge: 'SDS' },
+            { value: 'NEW SURGICAL PATIENT (AM ADMIT)', badge: 'AM' },
+            { value: 'FOLLOW UP (CONSULT)', badge: 'FU' },
+            { value: 'FOLLOW UP (POST OP)', badge: 'PO' },
+            { value: 'TO BE DISCHARGED/SIGNED OFF', badge: 'DC' }
+        ];
+        const DEFAULT_RECORD_STATUS = STATUS_OPTIONS[0].value;
+        const VALID_STATUS_SET = new Set(STATUS_OPTIONS.map((option) => option.value));
+        const CROSS_OUT_STORAGE_KEY = 'app-crossed-out-patients';
+        const CROSS_OUT_SETTINGS_KEY = 'crossedOutPatientIds';
+        let crossedOutPatientIds = loadPersistedIdSet(CROSS_OUT_STORAGE_KEY);
+        let crossOutCloudSaveTimer = null;
 
         window.getCurrentPatients = () => patients;
 
+        function loadPersistedIdSet(storageKey) {
+            try {
+                const raw = localStorage.getItem(storageKey);
+                const parsed = raw ? JSON.parse(raw) : [];
+                return new Set(Array.isArray(parsed) ? parsed.filter(Boolean) : []);
+            } catch (error) {
+                console.warn('Could not load persisted id set:', storageKey, error);
+                return new Set();
+            }
+        }
+
+        function persistCrossedOutPatientIds() {
+            try {
+                localStorage.setItem(CROSS_OUT_STORAGE_KEY, JSON.stringify(Array.from(crossedOutPatientIds)));
+            } catch (error) {
+                console.warn('Could not persist crossed out patients:', error);
+            }
+        }
+
+        function parsePersistedCrossOutValue(rawValue) {
+            try {
+                if (Array.isArray(rawValue)) return new Set(rawValue.filter(Boolean));
+                if (typeof rawValue === 'string' && rawValue.trim()) {
+                    const parsed = JSON.parse(rawValue);
+                    return new Set(Array.isArray(parsed) ? parsed.filter(Boolean) : []);
+                }
+            } catch (error) {
+                console.warn('Could not parse crossed out patients from settings:', error);
+            }
+            return new Set();
+        }
+
+        function areIdSetsEqual(left, right) {
+            if (left.size !== right.size) return false;
+            for (const value of left) {
+                if (!right.has(value)) return false;
+            }
+            return true;
+        }
+
+        function syncCrossedOutPatientIds(rawValue) {
+            const nextSet = parsePersistedCrossOutValue(rawValue);
+            if (areIdSetsEqual(crossedOutPatientIds, nextSet)) return false;
+            crossedOutPatientIds = nextSet;
+            persistCrossedOutPatientIds();
+            return true;
+        }
+
+        function queuePersistCrossedOutPatientIdsToCloud() {
+            if (!(isConnected && useM365 && typeof window.m365SaveSetting === 'function')) return;
+            if (crossOutCloudSaveTimer) clearTimeout(crossOutCloudSaveTimer);
+            const serializedIds = JSON.stringify(Array.from(crossedOutPatientIds));
+            crossOutCloudSaveTimer = setTimeout(async () => {
+                try {
+                    await window.m365SaveSetting(CROSS_OUT_SETTINGS_KEY, serializedIds);
+                } catch (error) {
+                    console.warn('Could not persist crossed out patients to M365:', error);
+                }
+            }, 250);
+        }
+
+        function persistCrossedOutPatientIdsWithSync(options = {}) {
+            persistCrossedOutPatientIds();
+            if (options.syncCloud) queuePersistCrossedOutPatientIdsToCloud();
+        }
+
+        function isPatientCrossedOut(patientId) {
+            return crossedOutPatientIds.has(patientId);
+        }
+
+        function getSafeConfiguredStatus(status) {
+            return VALID_STATUS_SET.has(String(status || '').trim()) ? String(status).trim() : DEFAULT_RECORD_STATUS;
+        }
+
+        function getPatientStatus(patient) {
+            return getSafeConfiguredStatus(patient?.procedureStatus);
+        }
+
+        function renderStatusOptionsMarkup(selectedStatus) {
+            const normalizedStatus = getSafeConfiguredStatus(selectedStatus);
+            return STATUS_OPTIONS.map((option) => {
+                const isSelected = option.value === normalizedStatus ? 'selected' : '';
+                return `<option value="${option.value}" ${isSelected}>${option.value}</option>`;
+            }).join('');
+        }
+
         const PROC_KEYWORDS = /(cysto|stent|turbt|litho|laser|surgery|bx|biopsy|procedure|or|scheduled|urology|pcn|urs|nephrectomy|robotic)/i;
         const STATUS_COLORS = {
+            'NEW CONSULT': { bg: 'bg-slate-50 border border-slate-300', text: 'text-slate-700', badge: 'NC', bgHeavy: 'bg-slate-100' },
+            'SURGICAL PATIENT (SAME DAY SURGERY)': { bg: 'bg-blue-50 border border-blue-300', text: 'text-blue-700', badge: 'SDS', bgHeavy: 'bg-blue-100' },
+            'NEW SURGICAL PATIENT (AM ADMIT)': { bg: 'bg-cyan-50 border border-cyan-300', text: 'text-cyan-700', badge: 'AM', bgHeavy: 'bg-cyan-100' },
+            'FOLLOW UP (CONSULT)': { bg: 'bg-emerald-50 border border-emerald-300', text: 'text-emerald-700', badge: 'FU', bgHeavy: 'bg-emerald-100' },
+            'FOLLOW UP (POST OP)': { bg: 'bg-amber-50 border border-amber-300', text: 'text-amber-700', badge: 'PO', bgHeavy: 'bg-amber-100' },
+            'TO BE DISCHARGED/SIGNED OFF': { bg: 'bg-rose-50 border border-rose-300', text: 'text-rose-700', badge: 'DC', bgHeavy: 'bg-rose-100' },
             'To-Do': { bg: 'bg-gray-50 border border-gray-300', text: 'text-gray-700', badge: '⬜', bgHeavy: 'bg-gray-200' },
             'In-Progress': { bg: 'bg-blue-50 border border-blue-300', text: 'text-blue-700', badge: '🔵', bgHeavy: 'bg-blue-200' },
             'Completed': { bg: 'bg-emerald-50 border border-emerald-300', text: 'text-emerald-700', badge: '✅', bgHeavy: 'bg-emerald-200' },
@@ -985,7 +1176,7 @@
                                 supervisingMd: parts[colMap.md] || '',
                                 pending: parts[colMap.pending] || '',
                                 followUp: parts[colMap.followUp] || '',
-                                procedureStatus: 'To-Do',
+                                procedureStatus: DEFAULT_RECORD_STATUS,
                                 priority: false,
                                 archived: false,
                                 cptPrimary: '',
@@ -1133,7 +1324,9 @@
         
         window.updateSettingsFromM365 = function(settingsData) {
             globalSettings = { onCall: settingsData.defaultOnCall || '', hospitals: settingsData.hospitals || '' };
+            const changedCrossOutState = syncCrossedOutPatientIds(settingsData[CROSS_OUT_SETTINGS_KEY]);
             updateOnCallDashboard();
+            if (changedCrossOutState && patients.length) renderUI();
         };
 
         window.savePatient = async (e) => {
@@ -1413,6 +1606,7 @@
             if (currentTab === 'calendar') renderCalendar();
             else renderMainTable();
             updateStats();
+            updateSelectionTray();
         }
 
         function renderMainTable() {
@@ -1425,36 +1619,34 @@
             }
             container.innerHTML = filtered.map(p => {
                 const isProc = PROC_KEYWORDS.test(p.plan || '');
-                const status = p.procedureStatus || 'To-Do';
-                const statusObj = STATUS_COLORS[status] || STATUS_COLORS['To-Do'];
+                const status = getPatientStatus(p);
+                const statusObj = STATUS_COLORS[status] || STATUS_COLORS[DEFAULT_RECORD_STATUS] || STATUS_COLORS['To-Do'];
                 const findingsDisplay = p.findingsCodes?.length ? p.findingsCodes.join(', ') : (p.findingsText || '-');
                 const priorityBadge = p.priority ? `<span class="inline-block ${PRIORITY_COLORS.stat.light} px-2 py-1.5 rounded font-bold text-[9px] mt-1">${PRIORITY_COLORS.stat.badge}</span>` : '';
+                const crossedOutClass = isPatientCrossedOut(p.id) ? 'cross-out-target' : '';
                 
                 return `
-                <tr class="border-b ${p.priority ? PRIORITY_COLORS.stat.light : 'bg-white border-slate-100'} hover:${statusObj.bgHeavy} transition-colors">
+                <tr class="border-b ${p.priority ? PRIORITY_COLORS.stat.light : 'bg-white border-slate-100'} ${isPatientCrossedOut(p.id) ? 'crossed-out-row' : ''} hover:${statusObj.bgHeavy} transition-colors">
                     <td class="p-3"><input type="checkbox" onchange="window.togglePatientSelection('${p.id}')" ${selectedPatientIds.has(p.id)?'checked':''} class="w-5 h-5 rounded cursor-pointer"></td>
                     <td class="p-3">
-                        <div class="font-bold text-sm ${p.priority ? 'text-red-900' : 'text-slate-900'}">${p.room}</div>
+                        <div class="font-bold text-sm ${p.priority ? 'text-red-900' : 'text-slate-900'} ${crossedOutClass}">${p.room}</div>
                         ${priorityBadge}
                     </td>
                     <td class="p-3">
-                        <div class="text-xs font-semibold text-slate-700">${p.hospital || 'N/A'}</div>
+                        <div class="text-xs font-semibold text-slate-700 ${crossedOutClass}">${p.hospital || 'N/A'}</div>
                     </td>
                     <td class="p-3">
-                        <div class="text-sm font-bold text-slate-900">${p.name || 'Anon'}</div>
-                        <div class="text-xs ${p.priority ? 'text-red-600 font-semibold' : 'text-slate-500'} mt-0.5">${p.date}</div>
+                        <div class="text-sm font-bold text-slate-900 ${crossedOutClass}">${p.name || 'Anon'}</div>
+                        <div class="text-xs ${p.priority ? 'text-red-600 font-semibold' : 'text-slate-500'} mt-0.5 ${crossedOutClass}">${p.date}</div>
                     </td>
                     <td class="p-3">
-                        <div class="text-xs text-slate-600 line-clamp-2 ${p.priority ? 'font-semibold' : ''}">${findingsDisplay}</div>
+                        <div class="text-xs text-slate-600 line-clamp-2 ${p.priority ? 'font-semibold' : ''} ${crossedOutClass}">${findingsDisplay}</div>
                     </td>
                     <td class="p-3">
-                        <div class="text-xs font-bold text-slate-800 mb-1">${p.plan || '-'}</div>
+                        <div class="text-xs font-bold text-slate-800 mb-1 ${crossedOutClass}">${p.plan || '-'}</div>
                         ${isProc ? `<div class="flex items-center gap-2">
                             <select onchange="window.updateStatusQuick('${p.id}', this.value)" class="text-[8px] rounded px-1.5 py-1 ${statusObj.bg} border font-bold flex-1">
-                                <option value="To-Do" ${status === 'To-Do' ? 'selected' : ''}>To-Do ⬜</option>
-                                <option value="In-Progress" ${status === 'In-Progress' ? 'selected' : ''}>In-Prog 🔵</option>
-                                <option value="Completed" ${status === 'Completed' ? 'selected' : ''}>Done ✅</option>
-                                <option value="Post-Op" ${status === 'Post-Op' ? 'selected' : ''}>Post-Op ⭐</option>
+                                ${renderStatusOptionsMarkup(status)}
                             </select>
                             <span class="inline-block ${statusObj.bg} ${statusObj.text} px-2 py-1 rounded whitespace-nowrap font-bold text-[9px]">${statusObj.badge}</span>
                         </div>` : ''}
@@ -1558,6 +1750,21 @@
             renderUI();
         };
 
+        function updateSelectionTray() {
+            const batchOps = document.getElementById('batch-operations');
+            const batchCount = document.getElementById('batch-count');
+            const batchStatusSelect = document.getElementById('batch-status-select');
+            const actionButtons = document.querySelectorAll('[data-batch-action]');
+            const hasSelection = selectedPatientIds.size > 0;
+
+            if (batchOps) batchOps.classList.toggle('active', hasSelection);
+            if (batchCount) batchCount.textContent = `${selectedPatientIds.size} selected`;
+            if (batchStatusSelect) batchStatusSelect.disabled = !hasSelection;
+            actionButtons.forEach((button) => {
+                button.disabled = !hasSelection;
+            });
+        }
+
         window.togglePatientSelection = (id) => { 
             if(selectedPatientIds.has(id)) selectedPatientIds.delete(id); 
             else selectedPatientIds.add(id); 
@@ -1579,7 +1786,54 @@
                 b.disabled = selectedPatientIds.size === 0; 
                 b.innerText = `Handoff (${selectedPatientIds.size})`; 
             }
+            updateSelectionTray();
         }
+
+        window.batchChangeStatus = async () => {
+            const newStatus = document.getElementById('batch-status-select')?.value || DEFAULT_RECORD_STATUS;
+            const ids = [...selectedPatientIds];
+            if (!ids.length) {
+                showToast('⚠️ Select at least one record');
+                return;
+            }
+
+            let updated = 0;
+            for (const id of ids) {
+                const patient = patients.find((entry) => entry.id === id);
+                if (!patient) continue;
+                patient.procedureStatus = newStatus;
+                if (isConnected && useM365 && typeof window.m365SavePatient === 'function') {
+                    await window.m365SavePatient(patient);
+                }
+                updated += 1;
+            }
+
+            renderUI();
+            showToast(`✅ ${updated} records updated`);
+        };
+
+        window.batchToggleCrossOut = () => {
+            const ids = [...selectedPatientIds];
+            if (!ids.length) {
+                showToast('⚠️ Select at least one record');
+                return;
+            }
+
+            const shouldClearCrossOut = ids.every((id) => crossedOutPatientIds.has(id));
+            ids.forEach((id) => {
+                if (shouldClearCrossOut) crossedOutPatientIds.delete(id);
+                else crossedOutPatientIds.add(id);
+            });
+
+            persistCrossedOutPatientIdsWithSync({ syncCloud: true });
+            renderUI();
+            showToast(shouldClearCrossOut ? '↺ Cross out removed' : '✗ Crossed out');
+        };
+
+        window.cancelBatchSelection = () => {
+            selectedPatientIds.clear();
+            renderUI();
+        };
 
         window.generateHandoff = () => {
             const sel = patients.filter(p => selectedPatientIds.has(p.id));
@@ -2104,6 +2358,27 @@
             <button id="tab-archive-btn" onclick="window.setTab('archive')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase">Archive</button>
         </nav>
 
+        <div id="batch-operations" class="batch-operations">
+            <div class="flex flex-col min-w-[128px]">
+                <div class="batch-eyebrow">Selection Mode</div>
+                <div class="batch-count" id="batch-count">0 selected</div>
+            </div>
+            <div class="batch-actions">
+                <select id="batch-status-select" class="px-3 py-2 text-xs border border-slate-300 rounded bg-white text-slate-700" disabled>
+                    <option>NEW CONSULT</option>
+                    <option>SURGICAL PATIENT (SAME DAY SURGERY)</option>
+                    <option>NEW SURGICAL PATIENT (AM ADMIT)</option>
+                    <option>FOLLOW UP (CONSULT)</option>
+                    <option>FOLLOW UP (POST OP)</option>
+                    <option>TO BE DISCHARGED/SIGNED OFF</option>
+                </select>
+                <button data-batch-action onclick="window.batchChangeStatus()" class="px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700" disabled>Apply Status</button>
+                <button data-batch-action onclick="window.batchToggleCrossOut()" class="px-3 py-2 bg-rose-600 text-white text-xs font-bold rounded hover:bg-rose-700" disabled>Cross Out</button>
+                <button data-batch-action onclick="window.generateHandoff()" class="px-3 py-2 bg-slate-700 text-white text-xs font-bold rounded hover:bg-slate-800" disabled>Handoff</button>
+            </div>
+            <button onclick="window.cancelBatchSelection()" class="batch-dismiss px-3 py-2 bg-slate-400 text-white text-xs font-bold rounded hover:bg-slate-500">Clear Selection</button>
+        </div>
+
         <!-- Content Area -->
         <div class="content-area">
             <div id="table-section" class="h-full">
@@ -2276,7 +2551,7 @@
                 <div>
                     <label class="text-xs font-bold text-slate-600">Status</label>
                     <select id="f-proc-status" class="w-full mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                        <option>To-Do</option><option>In-Progress</option><option>Completed</option><option>Post-Op</option>
+                        <option>NEW CONSULT</option><option>SURGICAL PATIENT (SAME DAY SURGERY)</option><option>NEW SURGICAL PATIENT (AM ADMIT)</option><option>FOLLOW UP (CONSULT)</option><option>FOLLOW UP (POST OP)</option><option>TO BE DISCHARGED/SIGNED OFF</option>
                     </select>
                 </div>
 

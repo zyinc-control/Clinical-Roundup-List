@@ -219,7 +219,7 @@ async function fetchPatients(dateFilter = null) {
             pending: item.fields.Pending || '',
             followUp: item.fields.FollowUp || '',
             priority: item.fields.Priority === 'Yes',
-            procedureStatus: item.fields.ProcedureStatus || 'To-Do',
+            procedureStatus: item.fields.ProcedureStatus || 'NEW CONSULT',
             cptPrimary: item.fields.CPTPrimary || '',
             icdPrimary: item.fields.ICDPrimary || '',
             chargeCodesSecondary: item.fields.ChargeCodesSecondary ? JSON.parse(item.fields.ChargeCodesSecondary) : [],
@@ -260,7 +260,7 @@ async function savePatient(patientData) {
         Pending: patientData.pending || '',
         FollowUp: patientData.followUp || '',
         Priority: patientData.priority ? 'Yes' : 'No',
-        ProcedureStatus: patientData.procedureStatus || 'To-Do',
+        ProcedureStatus: patientData.procedureStatus || 'NEW CONSULT',
         CPTPrimary: patientData.cptPrimary || '',
         ICDPrimary: patientData.icdPrimary || '',
         ChargeCodesSecondary: patientData.chargeCodesSecondary ? JSON.stringify(patientData.chargeCodesSecondary) : '[]',
@@ -591,7 +591,7 @@ async function importFromCSV(csvText) {
             pending: row[columnMap.pending] || '',
             followUp: row[columnMap.followUp] || '',
             priority: false,
-            procedureStatus: 'To-Do',
+            procedureStatus: 'NEW CONSULT',
             archived: false
         };
         
@@ -709,6 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.m365FetchOnCall = fetchOnCallSchedule;
     window.m365SaveOnCall = saveOnCallShift;
     window.m365DeleteOnCall = deleteOnCallShift;
+    window.m365SaveSetting = saveSetting;
     window.m365ExportToOneDrive = exportToOneDrive;
     window.m365ImportFromCSV = importFromCSV;
 });

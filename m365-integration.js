@@ -602,7 +602,7 @@ async function api_fetchPatients(dateFilter = null) {
             supervisingMd: item.fields.SupervisingMD || '',
             pending: item.fields.Pending || '',
             followUp: item.fields.FollowUp || '',
-            procedureStatus: item.fields.ProcedureStatus || 'To-Do',
+            procedureStatus: item.fields.ProcedureStatus || 'NEW CONSULT',
             cptPrimary: item.fields.CPTPrimary || '',
             icdPrimary: item.fields.ICDPrimary || '',
             chargeCodesSecondary: item.fields.ChargeCodesSecondary ? JSON.parse(item.fields.ChargeCodesSecondary) : [],
@@ -742,7 +742,7 @@ async function api_savePatient(patientData) {
         Pending: patientData.pending || '',
         FollowUp: patientData.followUp || '',
         Priority: normalizeBool(patientData.stat) || normalizeBool(patientData.priority),
-        ProcedureStatus: patientData.procedureStatus || 'To-Do',
+        ProcedureStatus: patientData.procedureStatus || 'NEW CONSULT',
         CPTPrimary: patientData.cptPrimary || '',
         ICDPrimary: patientData.icdPrimary || '',
         ChargeCodesSecondary: patientData.chargeCodesSecondary ? JSON.stringify(patientData.chargeCodesSecondary) : '[]',
@@ -1349,7 +1349,7 @@ async function api_importFromCSV(csvText) {
             supervisingMd: row[columnMap.supervisingMd] || '',
             pending: row[columnMap.pending] || '',
             followUp: row[columnMap.followUp] || '',
-            procedureStatus: 'To-Do',
+            procedureStatus: 'NEW CONSULT',
             archived: false
         };
         

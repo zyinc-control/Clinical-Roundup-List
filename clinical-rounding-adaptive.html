@@ -305,34 +305,88 @@
         /* ============================================================================= */
         .batch-operations {
             display: none;
-            padding: 0.75rem;
-            background: #eff6ff;
-            border-bottom: 2px solid #3b82f6;
+            align-items: center;
             gap: 0.5rem;
             flex-wrap: wrap;
+            position: fixed;
+            left: 50%;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+            transform: translateX(-50%) translateY(1rem);
+            width: min(calc(100% - 1rem), 980px);
+            padding: 0.875rem 1rem;
+            background: rgba(239, 246, 255, 0.96);
+            border: 1px solid #93c5fd;
+            border-radius: 1rem;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            z-index: 60;
         }
         
         body.dark-mode .batch-operations {
-            background: #1e3a8a;
-            border-bottom-color: #60a5fa;
+            background: rgba(30, 58, 138, 0.94);
+            border-color: #60a5fa;
         }
         
         .batch-operations.active {
             display: flex;
-            position: sticky;
-            top: 0;
-            z-index: 20;
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .batch-eyebrow {
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #1d4ed8;
+            margin-bottom: 0.15rem;
+        }
+
+        body.dark-mode .batch-eyebrow {
+            color: #bfdbfe;
+        }
+
+        .batch-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .batch-dismiss {
+            margin-left: auto;
         }
         
         .batch-count {
             flex-shrink: 0;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem 0.95rem;
             background: #3b82f6;
             color: white;
-            border-radius: 0.25rem;
+            border-radius: 999px;
             font-size: 0.75rem;
             font-weight: bold;
             align-self: center;
+        }
+
+        @media (max-width: 640px) {
+            .batch-operations {
+                width: calc(100% - 0.75rem);
+                padding: 0.75rem;
+                gap: 0.4rem;
+            }
+
+            .batch-actions {
+                width: 100%;
+            }
+
+            .batch-dismiss {
+                margin-left: 0;
+            }
         }
         
         /* ============================================================================= */
@@ -941,6 +995,96 @@
             overflow-y: auto;
             padding-right: 0.2rem;
             margin-bottom: 0.4rem;
+        }
+
+        .scroll-hint-parent {
+            position: relative;
+        }
+
+        .scroll-hint-chevron {
+            position: absolute;
+            z-index: 15;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.78);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+        }
+
+        .scroll-hint-chevron.visible {
+            opacity: 0.96;
+        }
+
+        .scroll-hint-up,
+        .scroll-hint-down {
+            left: 50%;
+            transform: translateX(-50%) scale(0.92);
+        }
+
+        .scroll-hint-up.visible,
+        .scroll-hint-down.visible {
+            transform: translateX(-50%) scale(1);
+        }
+
+        .scroll-hint-up {
+            top: 0.5rem;
+        }
+
+        .scroll-hint-down {
+            bottom: 0.5rem;
+        }
+
+        .scroll-hint-left,
+        .scroll-hint-right {
+            top: 50%;
+            transform: translateY(-50%) scale(0.92);
+        }
+
+        .scroll-hint-left.visible,
+        .scroll-hint-right.visible {
+            transform: translateY(-50%) scale(1);
+        }
+
+        .scroll-hint-left {
+            left: 0.5rem;
+        }
+
+        .scroll-hint-right {
+            right: 0.5rem;
+        }
+
+        .cross-out-target {
+            text-decoration: line-through;
+            opacity: 0.58;
+        }
+
+        .crossed-out-row {
+            background-image: linear-gradient(to right, rgba(148, 163, 184, 0.08), rgba(148, 163, 184, 0));
+        }
+
+        .patient-card.crossed-out .card-name,
+        .patient-card.crossed-out .card-mrn,
+        .patient-card.crossed-out .card-field-value,
+        .patient-card.crossed-out .card-chip,
+        .patient-card.crossed-out .card-badge {
+            text-decoration: line-through;
+            opacity: 0.58;
+        }
+
+        @media (min-width: 769px) {
+            .scroll-hint-chevron {
+                display: none;
+            }
         }
         
         .card-action-btn {
@@ -1854,6 +1998,136 @@
         var isConnected = false;
         var isAuthenticated = false;
 
+        const STATUS_OPTIONS = [
+            { value: 'NEW CONSULT', badge: 'NC' },
+            { value: 'SURGICAL PATIENT (SAME DAY SURGERY)', badge: 'SDS' },
+            { value: 'NEW SURGICAL PATIENT (AM ADMIT)', badge: 'AM' },
+            { value: 'FOLLOW UP (CONSULT)', badge: 'FU' },
+            { value: 'FOLLOW UP (POST OP)', badge: 'PO' },
+            { value: 'TO BE DISCHARGED/SIGNED OFF', badge: 'DC' }
+        ];
+        const DEFAULT_RECORD_STATUS = STATUS_OPTIONS[0].value;
+        const VALID_STATUS_SET = new Set(STATUS_OPTIONS.map((option) => option.value));
+        const ACTIVE_SURGICAL_WORKFLOW_STATUSES = new Set([
+            'SURGICAL PATIENT (SAME DAY SURGERY)',
+            'NEW SURGICAL PATIENT (AM ADMIT)'
+        ]);
+        const POST_OP_WORKFLOW_STATUS = 'FOLLOW UP (POST OP)';
+        const DISCHARGE_WORKFLOW_STATUS = 'TO BE DISCHARGED/SIGNED OFF';
+        const CROSS_OUT_STORAGE_KEY = 'app-crossed-out-patients';
+        const CROSS_OUT_SETTINGS_KEY = 'crossedOutPatientIds';
+        var crossedOutPatientIds = loadPersistedIdSet(CROSS_OUT_STORAGE_KEY);
+        var crossOutCloudSaveTimer = null;
+
+        function loadPersistedIdSet(storageKey) {
+            try {
+                const raw = localStorage.getItem(storageKey);
+                const parsed = raw ? JSON.parse(raw) : [];
+                return new Set(Array.isArray(parsed) ? parsed.filter(Boolean) : []);
+            } catch (error) {
+                console.warn('Could not load persisted id set:', storageKey, error);
+                return new Set();
+            }
+        }
+
+        function persistCrossedOutPatientIds() {
+            try {
+                localStorage.setItem(CROSS_OUT_STORAGE_KEY, JSON.stringify(Array.from(crossedOutPatientIds)));
+            } catch (error) {
+                console.warn('Could not persist crossed out patients:', error);
+            }
+        }
+
+        function parsePersistedCrossOutValue(rawValue) {
+            try {
+                if (Array.isArray(rawValue)) return new Set(rawValue.filter(Boolean));
+                if (typeof rawValue === 'string' && rawValue.trim()) {
+                    const parsed = JSON.parse(rawValue);
+                    return new Set(Array.isArray(parsed) ? parsed.filter(Boolean) : []);
+                }
+            } catch (error) {
+                console.warn('Could not parse crossed out patients from settings:', error);
+            }
+            return new Set();
+        }
+
+        function areIdSetsEqual(left, right) {
+            if (left.size !== right.size) return false;
+            for (const value of left) {
+                if (!right.has(value)) return false;
+            }
+            return true;
+        }
+
+        function syncCrossedOutPatientIds(rawValue) {
+            const nextSet = parsePersistedCrossOutValue(rawValue);
+            if (areIdSetsEqual(crossedOutPatientIds, nextSet)) return false;
+            crossedOutPatientIds = nextSet;
+            persistCrossedOutPatientIds();
+            return true;
+        }
+
+        function queuePersistCrossedOutPatientIdsToCloud() {
+            if (!(isConnected && useM365 && typeof globalThis.m365SaveSetting === 'function')) return;
+            if (crossOutCloudSaveTimer) clearTimeout(crossOutCloudSaveTimer);
+            const serializedIds = JSON.stringify(Array.from(crossedOutPatientIds));
+            crossOutCloudSaveTimer = setTimeout(async () => {
+                try {
+                    await globalThis.m365SaveSetting(CROSS_OUT_SETTINGS_KEY, serializedIds);
+                } catch (error) {
+                    console.warn('Could not persist crossed out patients to M365:', error);
+                }
+            }, 250);
+        }
+
+        function persistCrossedOutPatientIdsWithSync(options = {}) {
+            persistCrossedOutPatientIds();
+            if (options.syncCloud) queuePersistCrossedOutPatientIdsToCloud();
+        }
+
+        function isPatientCrossedOut(patientId) {
+            return crossedOutPatientIds.has(patientId);
+        }
+
+        function getPatientStatus(patient) {
+            const status = String(patient?.procedureStatus || '').trim();
+            return status || DEFAULT_RECORD_STATUS;
+        }
+
+        function getSafeConfiguredStatus(status) {
+            return VALID_STATUS_SET.has(String(status || '').trim()) ? String(status).trim() : DEFAULT_RECORD_STATUS;
+        }
+
+        function isActiveSurgicalWorkflowStatus(status) {
+            return ACTIVE_SURGICAL_WORKFLOW_STATUSES.has(getSafeConfiguredStatus(status));
+        }
+
+        function isDownstreamSurgicalWorkflowStatus(status) {
+            const normalizedStatus = getSafeConfiguredStatus(status);
+            return normalizedStatus === POST_OP_WORKFLOW_STATUS || normalizedStatus === DISCHARGE_WORKFLOW_STATUS;
+        }
+
+        function getStatusAccentHex(status) {
+            const normalizedStatus = getSafeConfiguredStatus(status);
+            const colorByStatus = {
+                'NEW CONSULT': '#64748b',
+                'SURGICAL PATIENT (SAME DAY SURGERY)': '#2563eb',
+                'NEW SURGICAL PATIENT (AM ADMIT)': '#0891b2',
+                'FOLLOW UP (CONSULT)': '#059669',
+                'FOLLOW UP (POST OP)': '#d97706',
+                'TO BE DISCHARGED/SIGNED OFF': '#e11d48'
+            };
+            return colorByStatus[normalizedStatus] || '#64748b';
+        }
+
+        function renderStatusOptionsMarkup(selectedStatus) {
+            const normalizedStatus = getSafeConfiguredStatus(selectedStatus);
+            return STATUS_OPTIONS.map((option) => {
+                const isSelected = option.value === normalizedStatus ? 'selected' : '';
+                return `<option value="${option.value}" ${isSelected}>${option.value}</option>`;
+            }).join('');
+        }
+
         // Device Detection & Adaptation
         const Device = (() => {
             const ua = navigator.userAgent.toLowerCase();
@@ -2734,7 +3008,7 @@
             switch(type) {
                 case 'stat': toastMsg = '🔴 STAT Only'; break;
                 case 'procedures': toastMsg = '🔵 Procedures Only'; break;
-                case 'inprogress': toastMsg = '⚡ In-Progress Only'; break;
+                case 'inprogress': toastMsg = '⚡ Active Surgical Workflow'; break;
                 case 'pending': toastMsg = '📋 Pending Tests Only'; break;
             }
             if (toastMsg) showToast(toastMsg);
@@ -2796,6 +3070,7 @@
         globalThis.showShortcutsHelp = () => {
             document.getElementById('shortcuts-modal').classList.add('active');
             document.body.classList.add('no-scroll');
+            setTimeout(() => globalThis.initScrollHints?.(), 0);
         };
 
         // Close Shortcuts Help
@@ -2866,6 +3141,32 @@
             renderUI();
             updateBatchOpCount();
             showToast(failed ? `⚠️ ${updated} saved, ${failed} failed` : `✅ ${updated} records updated to ${newStatus}`);
+        };
+
+        globalThis.batchToggleCrossOut = () => {
+            const ids = [...selectedPatientIds];
+            if (!ids.length) {
+                showToast('⚠️ Select at least one record');
+                return;
+            }
+
+            const shouldClearCrossOut = ids.every((id) => crossedOutPatientIds.has(id));
+            const recordLabel = `record${ids.length === 1 ? '' : 's'}`;
+            ids.forEach((id) => {
+                if (shouldClearCrossOut) {
+                    crossedOutPatientIds.delete(id);
+                } else {
+                    crossedOutPatientIds.add(id);
+                }
+            });
+
+            persistCrossedOutPatientIdsWithSync({ syncCloud: true });
+            renderUI();
+            updateBatchOpCount();
+            const toastMessage = shouldClearCrossOut
+                ? `↺ Removed cross out from ${ids.length} ${recordLabel}`
+                : `✗ Crossed out ${ids.length} ${recordLabel}`;
+            showToast(toastMessage);
         };
 
         // Batch Archive
@@ -3208,8 +3509,8 @@
                     break;
                 }
                 case 'postop': {
-                    // Post-op: status = Post-Op, last 7 days
-                    activeFilters.statuses = ['Post-Op'];
+                    // Post-op: follow-up after surgery, last 7 days
+                    activeFilters.statuses = [POST_OP_WORKFLOW_STATUS];
                     const sevenDaysAgo = new Date();
                     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
                     activeFilters.dateFrom = sevenDaysAgo.toISOString().split('T')[0];
@@ -3254,7 +3555,7 @@
             
             // Apply status filter
             if (activeFilters.statuses && activeFilters.statuses.length > 0) {
-                filtered = filtered.filter(p => activeFilters.statuses.includes(p.procedureStatus || 'To-Do'));
+                filtered = filtered.filter(p => activeFilters.statuses.includes(getPatientStatus(p)));
             }
             
             // Apply priority filter
@@ -3323,7 +3624,7 @@
                 } else if (type === 'procedures') {
                     filtered = filtered.filter(p => isSurgicalCase(p));
                 } else if (type === 'inprogress') {
-                    filtered = filtered.filter(p => p.procedureStatus === 'In-Progress');
+                    filtered = filtered.filter(p => isActiveSurgicalWorkflowStatus(getPatientStatus(p)));
                 } else if (type === 'pending') {
                     filtered = filtered.filter(p => p.pending && String(p.pending).trim().length > 0);
                 } else if (type === 'date' && globalThis._quickFilterDate) {
@@ -3436,9 +3737,9 @@
         // Render Status Distribution Pie Chart
         globalThis.renderStatusChart = () => {
             const filtered = getFilteredData();
-            const statuses = ['To-Do', 'In-Progress', 'Completed', 'Post-Op'];
-            const counts = statuses.map(s => filtered.filter(p => (p.procedureStatus || 'To-Do') === s).length);
-            const colors = ['#d1d5db', '#3b82f6', '#10b981', '#f59e0b'];
+            const statuses = STATUS_OPTIONS.map((option) => option.value);
+            const counts = statuses.map((status) => filtered.filter((p) => getPatientStatus(p) === status).length);
+            const colors = statuses.map((status) => getStatusAccentHex(status));
             
             const total = counts.reduce((a,b) => a+b, 0);
             if (total === 0) return;
@@ -3513,7 +3814,7 @@
             const procedurePatients = activePatients.filter(p => isSurgicalCase(p));
             const statPatients = activePatients.filter(p => p.stat === true || p.stat === 'true');
             const pendingPatients = activePatients.filter(p => p.pending && String(p.pending).trim().length > 0);
-            const inProgressPatients = procedurePatients.filter(p => (p.procedureStatus || 'To-Do') === 'In-Progress');
+            const inProgressPatients = procedurePatients.filter(p => isActiveSurgicalWorkflowStatus(getPatientStatus(p)));
 
             const avgLos = activePatients.length
                 ? Math.round(activePatients.reduce((sum, p) => sum + (globalThis.calculateLOS(p.date) || 0), 0) / activePatients.length)
@@ -3529,9 +3830,9 @@
                 hospitalCounts[key] = (hospitalCounts[key] || 0) + 1;
             });
 
-            const statusCounts = { 'To-Do': 0, 'In-Progress': 0, 'Completed': 0, 'Post-Op': 0 };
+            const statusCounts = Object.fromEntries(STATUS_OPTIONS.map((option) => [option.value, 0]));
             procedurePatients.forEach((p) => {
-                const status = p.procedureStatus || 'To-Do';
+                const status = getPatientStatus(p);
                 statusCounts[status] = (statusCounts[status] || 0) + 1;
             });
 
@@ -3600,9 +3901,9 @@
             if (preset === 'procedures') {
                 renderAnalyticsCards([
                     { title: 'Total Procedures', value: data.procedurePatients.length, subtitle: 'Procedure-eligible patients' },
-                    { title: 'In-Progress', value: data.inProgressPatients.length, subtitle: 'Current in-progress procedures' },
-                    { title: 'Completed', value: data.statusCounts['Completed'] || 0, subtitle: 'Completed procedure status' },
-                    { title: 'Post-Op', value: data.statusCounts['Post-Op'] || 0, subtitle: 'Post-op follow-up status' }
+                    { title: 'Active Surgical', value: data.inProgressPatients.length, subtitle: 'Same-day or AM-admit workflow' },
+                    { title: 'Post-Op Follow-Up', value: data.statusCounts[POST_OP_WORKFLOW_STATUS] || 0, subtitle: 'Post-op follow-up status' },
+                    { title: 'Discharge / Sign-Off', value: data.statusCounts[DISCHARGE_WORKFLOW_STATUS] || 0, subtitle: 'Ready to discharge or sign off' }
                 ]);
                 renderAnalyticsDetails('Procedure Status Mix', statusesSorted.map(([status, count]) => `${status}: ${count}`));
                 return;
@@ -3623,7 +3924,7 @@
                 renderAnalyticsCards([
                     { title: 'STAT Cases', value: data.statPatients.length, subtitle: 'Immediate attention cases' },
                     { title: 'Pending Tests', value: data.pendingPatients.length, subtitle: 'Needs result follow-up' },
-                    { title: 'In-Progress Procedures', value: data.inProgressPatients.length, subtitle: 'Active procedure workflow' },
+                    { title: 'Active Surgical Procedures', value: data.inProgressPatients.length, subtitle: 'Same-day or AM-admit workflow' },
                     { title: 'Avg LOS', value: `${data.avgLos} d`, subtitle: 'Extended stay risk signal' }
                 ]);
 
@@ -3818,14 +4119,14 @@
                 hospitalsSorted.forEach(([hospital, count]) => {
                     const hospitalPatients = data.activePatients.filter(p => (p.hospital || 'Unassigned') === hospital);
                     const procPatients = hospitalPatients.filter(p => isSurgicalCase(p));
-                    const completed = procPatients.filter(p => (p.procedureStatus || 'To-Do') === 'Completed');
-                    const inProgress = procPatients.filter(p => (p.procedureStatus || 'To-Do') === 'In-Progress');
-                    const completionRate = procPatients.length > 0 ? Math.round((completed.length / procPatients.length) * 100) : 0;
+                    const downstream = procPatients.filter(p => isDownstreamSurgicalWorkflowStatus(getPatientStatus(p)));
+                    const inProgress = procPatients.filter(p => isActiveSurgicalWorkflowStatus(getPatientStatus(p)));
+                    const completionRate = procPatients.length > 0 ? Math.round((downstream.length / procPatients.length) * 100) : 0;
                     
                     hospitalPerformance[hospital] = {
                         totalPatients: count,
                         totalProcedures: procPatients.length,
-                        completedProcedures: completed.length,
+                        completedProcedures: downstream.length,
                         inProgressProcedures: inProgress.length,
                         completionRate
                     };
@@ -3836,9 +4137,9 @@
 
                 renderAnalyticsCards([
                     { title: 'Hospitals Tracked', value: perfSorted.length, subtitle: 'Active facilities' },
-                    { title: 'Best Completion Rate', value: `${topHosp?.[1]?.completionRate || 0}%`, subtitle: `${topHosp?.[0] || 'N/A'}` },
+                    { title: 'Best Workflow Rate', value: `${topHosp?.[1]?.completionRate || 0}%`, subtitle: `${topHosp?.[0] || 'N/A'}` },
                     { title: 'Total Procedures', value: data.procedurePatients.length, subtitle: 'Across all hospitals' },
-                    { title: 'Completion Rate Overall', value: `${data.procedurePatients.length > 0 ? Math.round((data.statusCounts['Completed'] / data.procedurePatients.length) * 100) : 0}%`, subtitle: 'System wide' }
+                    { title: 'Workflow Rate Overall', value: `${data.procedurePatients.length > 0 ? Math.round((((data.statusCounts[POST_OP_WORKFLOW_STATUS] || 0) + (data.statusCounts[DISCHARGE_WORKFLOW_STATUS] || 0)) / data.procedurePatients.length) * 100) : 0}%`, subtitle: 'System wide' }
                 ]);
 
                 const perfRows = perfSorted.map(([hosp, perf]) => 
@@ -4231,19 +4532,19 @@
             }
 
             if (!procs.length) {
-                container.innerHTML = `<div class="text-center text-slate-400 py-12 text-sm">No procedures found.<br><span class="text-xs">Detected when plan/findings contain keywords (cysto, stent, TURBT…) or status is In-Progress/Completed/Post-Op.</span></div>`;
+                container.innerHTML = `<div class="text-center text-slate-400 py-12 text-sm">No procedures found.<br><span class="text-xs">Detected when plan/findings contain keywords (cysto, stent, TURBT…) or a surgical workflow status is set.</span></div>`;
                 return;
             }
 
-            const statusBadgeClass = { 'In-Progress': 'bg-blue-100 text-blue-700', 'Completed': 'bg-green-100 text-green-700', 'Post-Op': 'bg-teal-100 text-teal-700', 'Scheduled': 'bg-amber-100 text-amber-700', 'Pre-Op': 'bg-orange-100 text-orange-700', 'To-Do': 'bg-slate-100 text-slate-600' };
             const esc = v => String(v == null ? '' : v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
             const rows = procs.map(p => {
                 const typeBadges = detectProcTypes(p).map(t =>
                     `<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${t.color} mr-0.5">${t.label}</span>`
                 ).join('');
-                const st = p.procedureStatus || 'To-Do';
-                const stClass = statusBadgeClass[st] || 'bg-slate-100 text-slate-600';
+                const st = getPatientStatus(p);
+                const statusObj = STATUS_COLORS[st] || STATUS_COLORS[DEFAULT_RECORD_STATUS];
+                const stClass = `${statusObj.bg} ${statusObj.text}`;
                 const statFlag = (p.stat === true || p.stat === 'true') ? '<span class="text-red-600 font-bold mr-1">🔴</span>' : '';
                 return `
                     <tr class="hover:bg-blue-50 cursor-pointer border-b border-slate-100" onclick="globalThis.openModal('${esc(p.id)}')" title="Open patient record">
@@ -4317,7 +4618,7 @@
                 groups[h].push(p);
             });
 
-            const statusBadge = { 'In-Progress': '#3b82f6', 'Completed': '#16a34a', 'Post-Op': '#0d9488', 'Scheduled': '#d97706', 'Pre-Op': '#ea580c', 'To-Do': '#94a3b8' };
+            const statusBadge = Object.fromEntries(STATUS_OPTIONS.map((option) => [option.value, getStatusAccentHex(option.value)]));
 
             let html = `
             <div class="shift-report print:shadow-none">
@@ -4380,7 +4681,7 @@
         function buildPatientRow(p, esc, statusBadge) {
             const isStat = p.stat===true||p.stat==='true';
             const isSurg = isSurgicalCase(p);
-            const st = p.procedureStatus || 'To-Do';
+            const st = getPatientStatus(p);
             const stColor = statusBadge[st] || '#94a3b8';
             let bg = 'bg-white border-slate-200';
             if (isStat) {
@@ -4420,7 +4721,7 @@
             if (statPts.length) {
                 lines.push('--- STAT PATIENTS ---');
                 statPts.forEach(p => {
-                    lines.push(`  [STAT] ${p.name} | Rm ${p.room||'?'} | MRN ${p.mrn||'?'} | ${p.procedureStatus||'To-Do'}${p.supervisingMd ? ' | MD: '+p.supervisingMd : ''}`);
+                    lines.push(`  [STAT] ${p.name} | Rm ${p.room||'?'} | MRN ${p.mrn||'?'} | ${getPatientStatus(p)}${p.supervisingMd ? ' | MD: '+p.supervisingMd : ''}`);
                     if (p.plan) lines.push(`    Plan: ${p.plan}`);
                     if (p.progressNotes) lines.push(`    Progress Notes: ${p.progressNotes}`);
                     if (p.pending) lines.push(`    Pending: ${p.pending}`);
@@ -4431,7 +4732,7 @@
             Object.keys(groups).sort().forEach(hosp => {
                 lines.push(`--- ${hosp} (${groups[hosp].length}) ---`);
                 groups[hosp].forEach(p => {
-                    lines.push(`  ${p.name} | Rm ${p.room||'?'} | MRN ${p.mrn||'?'} | ${p.procedureStatus||'Not-Set'}${p.supervisingMd ? ' | MD: '+p.supervisingMd : ''}`);
+                    lines.push(`  ${p.name} | Rm ${p.room||'?'} | MRN ${p.mrn||'?'} | ${getPatientStatus(p)}${p.supervisingMd ? ' | MD: '+p.supervisingMd : ''}`);
                     if (p.plan) lines.push(`    Plan: ${p.plan}`);
                     if (p.progressNotes) lines.push(`    Progress Notes: ${p.progressNotes}`);
                     if (p.pending) lines.push(`    Pending: ${p.pending}`);
@@ -4502,14 +4803,10 @@
             const fromDate = document.getElementById('timeline-filter-from')?.value || '';
             const esc = v => String(v == null ? '' : v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
-            const statusColors = {
-                'In-Progress': { bg: '#dbeafe', text: '#1d4ed8', label: '🔵 In-Progress' },
-                'Completed':   { bg: '#dcfce7', text: '#15803d', label: '✅ Completed'   },
-                'Post-Op':     { bg: '#ccfbf1', text: '#0f766e', label: '⭐ Post-Op'      },
-                'Scheduled':   { bg: '#fef9c3', text: '#a16207', label: '📅 Scheduled'   },
-                'Pre-Op':      { bg: '#fed7aa', text: '#c2410c', label: '⚠️ Pre-Op'       },
-                'To-Do':       { bg: '#f1f5f9', text: '#475569', label: '⬜ To-Do'        },
-            };
+            const statusColors = Object.fromEntries(STATUS_OPTIONS.map((option) => [
+                option.value,
+                { bg: `${getStatusAccentHex(option.value)}20`, text: getStatusAccentHex(option.value), label: option.value }
+            ]));
 
             // Collect matching visit records
             let visits = patients.slice(); // include archived so the full history is visible
@@ -4601,8 +4898,8 @@
 
         function buildTimelineEvent(p, esc, statusColors) {
             const isArchived = p.archived === true || p.archived === 'true';
-            const st = p.procedureStatus || 'To-Do';
-            const stStyle = statusColors[st] || statusColors['To-Do'];
+            const st = getPatientStatus(p);
+            const stStyle = statusColors[st] || statusColors[DEFAULT_RECORD_STATUS];
             const isStat = p.stat === true || p.stat === 'true';
             const isSurg = isSurgicalCase(p);
             let dotColor = '#3b82f6';
@@ -4736,7 +5033,7 @@
                 const cols = ['Date', 'Patient', 'Room', 'MRN', 'Hospital', 'Status', 'Plan', 'Progress Notes', 'Pending', 'MD'];
                 const rows = data.map(p => [
                     p.date || '', p.name || '—', p.room || '', p.mrn || '',
-                    p.hospital || '', p.procedureStatus || 'To-Do',
+                    p.hospital || '', getPatientStatus(p),
                     (p.plan || '').slice(0, 50), (p.progressNotes || '').slice(0, 50), (p.pending || '').slice(0, 35),
                     p.supervisingMd || p.md || ''
                 ]);
@@ -4789,11 +5086,12 @@
                 const age = globalThis.calculateAge(p.dob);
                 const los = globalThis.calculateLOS(p.date);
                 const statClass = (p.stat === true || p.stat === 'true') ? 'stat' : '';
-                const status = p.procedureStatus || 'To-Do';
+                const status = getPatientStatus(p);
                 const statusObj = STATUS_COLORS[status] || STATUS_COLORS['To-Do'];
+                const crossedOutCardClass = isPatientCrossedOut(p.id) ? 'crossed-out' : '';
                 
                 return `
-                    <div class="patient-card ${statClass}">
+                    <div class="patient-card ${statClass} ${crossedOutCardClass}">
                         <div class="card-header">
                             <div>
                                 <div class="card-name">${p.name || 'Anon'}</div>
@@ -5014,7 +5312,7 @@
             };
 
             if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-            if (statusInput) statusInput.value = 'To-Do';
+            if (statusInput) statusInput.value = DEFAULT_RECORD_STATUS;
             if (statInput) statInput.checked = false;
             if (visitTimeInput) visitTimeInput.value = new Date().toISOString();
             if (visitKeyInput) visitKeyInput.value = '';
@@ -5098,7 +5396,7 @@
                     if (document.getElementById('f-findings-dates')) {
                         document.getElementById('f-findings-dates').value = p.findingsDates ? JSON.stringify(p.findingsDates) : "";
                     }
-                    if (statusInput) statusInput.value = p.procedureStatus || 'To-Do';
+                    if (statusInput) statusInput.value = getSafeConfiguredStatus(p.procedureStatus);
                     if (statInput) statInput.checked = p.stat === true || p.stat === 'true';
                     renderPatientChangeHistory(p);
                     
@@ -5174,6 +5472,7 @@
                 globalThis.syncFindingsUI({ editable: isFindingsModalEditable() });
             }
             modal.classList.remove('hidden');
+            setTimeout(() => globalThis.initScrollHints?.(), 0);
             setTimeout(() => modal.querySelector('.modal-container')?.scrollTo(0, 0), 100);
         };
 
@@ -5484,22 +5783,108 @@
         globalThis.getCurrentPatients = () => patients;
 
         const PROC_KEYWORDS = /\b(cysto(?:scopy)?|stent|turbt|litho(?:tripsy)?|laser|surgery|bx|biopsy|procedure|scheduled|urology|pcn|urs|nephrectomy|robotic)\b/i;
-        const SURGICAL_STATUSES = new Set(['In-Progress', 'Completed', 'Post-Op', 'Scheduled', 'Pre-Op']);
+        const SURGICAL_STATUSES = new Set(['In-Progress', 'Completed', 'Post-Op', 'Scheduled', 'Pre-Op', 'SURGICAL PATIENT (SAME DAY SURGERY)', 'NEW SURGICAL PATIENT (AM ADMIT)', 'FOLLOW UP (POST OP)']);
 
         function isSurgicalCase(patient) {
             if (!patient || patient.archived) return false;
-            const status = String(patient.procedureStatus || 'To-Do');
+            const status = getPatientStatus(patient);
             const explicitFlag = patient.isProcedure === true || patient.surgical === true;
             const plan = String(patient.plan || '');
             const findings = String(patient.findingsText || '');
             return explicitFlag || SURGICAL_STATUSES.has(status) || PROC_KEYWORDS.test(plan) || PROC_KEYWORDS.test(findings);
         }
         const STATUS_COLORS = {
+            'NEW CONSULT': { bg: 'bg-slate-50 border border-slate-300', text: 'text-slate-700', badge: 'NC', bgHeavy: 'bg-slate-200' },
+            'SURGICAL PATIENT (SAME DAY SURGERY)': { bg: 'bg-blue-50 border border-blue-300', text: 'text-blue-700', badge: 'SDS', bgHeavy: 'bg-blue-200' },
+            'NEW SURGICAL PATIENT (AM ADMIT)': { bg: 'bg-indigo-50 border border-indigo-300', text: 'text-indigo-700', badge: 'AM', bgHeavy: 'bg-indigo-200' },
+            'FOLLOW UP (CONSULT)': { bg: 'bg-emerald-50 border border-emerald-300', text: 'text-emerald-700', badge: 'FU', bgHeavy: 'bg-emerald-200' },
+            'FOLLOW UP (POST OP)': { bg: 'bg-amber-50 border border-amber-300', text: 'text-amber-700', badge: 'PO', bgHeavy: 'bg-amber-200' },
+            'TO BE DISCHARGED/SIGNED OFF': { bg: 'bg-rose-50 border border-rose-300', text: 'text-rose-700', badge: 'DC', bgHeavy: 'bg-rose-200' },
             'To-Do': { bg: 'bg-gray-50 border border-gray-300', text: 'text-gray-700', badge: '⬜', bgHeavy: 'bg-gray-200' },
             'In-Progress': { bg: 'bg-blue-50 border border-blue-300', text: 'text-blue-700', badge: '🔵', bgHeavy: 'bg-blue-200' },
             'Completed': { bg: 'bg-emerald-50 border border-emerald-300', text: 'text-emerald-700', badge: '✅', bgHeavy: 'bg-emerald-200' },
             'Post-Op': { bg: 'bg-amber-50 border border-amber-300', text: 'text-amber-700', badge: '⭐', bgHeavy: 'bg-amber-200' }
         };
+
+        function attachScrollHint(target, axis) {
+            if (!target) return;
+
+            const datasetKey = axis === 'x' ? 'scrollHintXAttached' : 'scrollHintYAttached';
+            const parent = target.parentElement;
+            if (!parent) return;
+            parent.classList.add('scroll-hint-parent');
+
+            if (!target.dataset[datasetKey]) {
+                const hintNames = axis === 'x' ? ['left', 'right'] : ['up', 'down'];
+                const hints = hintNames.map((name) => {
+                    const hint = document.createElement('div');
+                    hint.className = `scroll-hint-chevron scroll-hint-${name}`;
+                    const hintSymbolMap = { left: '‹', right: '›', up: '⌃', down: '⌄' };
+                    hint.textContent = hintSymbolMap[name] || '⌄';
+                    parent.appendChild(hint);
+                    return hint;
+                });
+
+                const updateHints = () => {
+                    const isVisible = target.offsetParent !== null;
+                    const smallViewport = globalThis.innerWidth <= 768;
+                    const canScroll = axis === 'x'
+                        ? target.scrollWidth > target.clientWidth + 8
+                        : target.scrollHeight > target.clientHeight + 8;
+
+                    if (!smallViewport || !isVisible || !canScroll) {
+                        hints.forEach((hint) => hint.classList.remove('visible'));
+                        return;
+                    }
+
+                    if (axis === 'x') {
+                        hints[0].classList.toggle('visible', target.scrollLeft > 8);
+                        hints[1].classList.toggle('visible', target.scrollLeft + target.clientWidth < target.scrollWidth - 8);
+                    } else {
+                        hints[0].classList.toggle('visible', target.scrollTop > 8);
+                        hints[1].classList.toggle('visible', target.scrollTop + target.clientHeight < target.scrollHeight - 8);
+                    }
+                };
+
+                target.addEventListener('scroll', updateHints, { passive: true });
+                target.dataset[datasetKey] = 'true';
+                target[`__scrollHintUpdate${axis}`] = updateHints;
+            }
+
+            target[`__scrollHintUpdate${axis}`]?.();
+        }
+
+        function initScrollHints() {
+            [
+                'nav[aria-label="Main Navigation"]',
+                '#table-section .overflow-x-auto',
+                '#audit-content'
+            ].forEach((selector) => {
+                document.querySelectorAll(selector).forEach((element) => attachScrollHint(element, 'x'));
+            });
+
+            [
+                '.shortcuts-content',
+                '#patient-form',
+                '#handoff-text-area',
+                '#cal-grid',
+                '#oc-hospitals-container',
+                '#oc-schedule-list',
+                '#timeline-section',
+                '#analytics-section',
+                '#reports-section',
+                '#audit-section',
+                '#procedure-log-section',
+                '#shift-report-section',
+                '.card-scroll-body',
+                '.settings-content'
+            ].forEach((selector) => {
+                document.querySelectorAll(selector).forEach((element) => attachScrollHint(element, 'y'));
+            });
+        }
+
+        globalThis.initScrollHints = initScrollHints;
+        window.addEventListener('resize', () => globalThis.initScrollHints?.(), { passive: true });
 
         // CSV IMPORT ENGINE
         const CSVImporter = (() => {
@@ -5578,7 +5963,7 @@
                                 supervisingMd: parts[colMap.md] || '',
                                 pending: parts[colMap.pending] || '',
                                 followUp: parts[colMap.followUp] || '',
-                                procedureStatus: 'To-Do',
+                                procedureStatus: DEFAULT_RECORD_STATUS,
                                 archived: false,
                                 cptPrimary: '',
                                 icdPrimary: '',
@@ -5792,7 +6177,9 @@
         globalThis.updateSettingsFromM365 = function(settingsData) {
             console.log('⚙️  updateSettingsFromM365 called:', settingsData);
             globalSettings = { onCall: settingsData.defaultOnCall || '', hospitals: settingsData.hospitals || '' };
+            const changedCrossOutState = syncCrossedOutPatientIds(settingsData[CROSS_OUT_SETTINGS_KEY]);
             updateOnCallDashboard();
+            if (changedCrossOutState && patients.length) renderUI();
         };
         
         // Callback for authentication state changes
@@ -6730,6 +7117,7 @@
 
             setTimeout(() => {
                 globalThis.initSortableHeaders?.();
+                globalThis.initScrollHints?.();
             }, 50);
         }
         globalThis.renderUI = renderUI;
@@ -6748,10 +7136,12 @@
             
             container.innerHTML = filtered.map(p => {
                 const isProc = isSurgicalCase(p);
-                const status = p.procedureStatus || 'To-Do';
-                const statusObj = STATUS_COLORS[status] || STATUS_COLORS['To-Do'];
+                const status = getSafeConfiguredStatus(getPatientStatus(p));
+                const statusObj = STATUS_COLORS[status] || STATUS_COLORS[DEFAULT_RECORD_STATUS] || STATUS_COLORS['To-Do'];
                 const findingsDisplay = p.findingsCodes?.length ? p.findingsCodes.join(', ') : (p.findingsText || '-');
                 const visitTimeDisplay = p.visitTime ? new Date(p.visitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                const isCrossedOut = isPatientCrossedOut(p.id);
+                const crossedOutClass = isCrossedOut ? 'cross-out-target' : '';
                 
                 const isStat = (p.stat === true || p.stat === 'true');
                 const statClass = isStat ? 'bg-red-600 text-white border-4 border-red-800 shadow-lg shadow-red-500/50 hover:bg-red-700' : 'bg-white border-b border-slate-100 hover:bg-slate-50';
@@ -6762,23 +7152,20 @@
                 const textDark = isStat ? 'text-white' : 'text-slate-800';
                 
                 return `
-                <tr class="transition-colors ${statClass}" oncontextmenu="globalThis.openContextMenu(event, '${p.id}')">
+                <tr class="transition-colors ${statClass} ${isCrossedOut ? 'crossed-out-row' : ''}" oncontextmenu="globalThis.openContextMenu(event, '${p.id}')">
                     <td class="p-3"><input type="checkbox" data-patient-checkbox value="${p.id}" onchange="updateBatchOpCount()" class="w-5 h-5 rounded cursor-pointer" ${selectedPatientIds.has(p.id)?'checked':''}></td>
-                    ${visibleCols.includes('room') ? `<td class="p-3"><div class="font-bold text-sm ${textPrimary}">${p.room}</div></td>` : ''}
-                    ${visibleCols.includes('hospital') ? `<td class="p-3"><div class="text-xs font-semibold ${textSecondary}">${p.hospital || 'N/A'}</div></td>` : ''}
+                    ${visibleCols.includes('room') ? `<td class="p-3"><div class="font-bold text-sm ${textPrimary} ${crossedOutClass}">${p.room}</div></td>` : ''}
+                    ${visibleCols.includes('hospital') ? `<td class="p-3"><div class="text-xs font-semibold ${textSecondary} ${crossedOutClass}">${p.hospital || 'N/A'}</div></td>` : ''}
                     <td class="p-3">
-                        <div class="text-sm font-bold ${textPrimary}">${p.name || 'Anon'}</div>
-                        <div class="text-xs ${textMuted} mt-0.5">${p.date}${visitTimeDisplay ? ` ${visitTimeDisplay}` : ''}</div>
+                        <div class="text-sm font-bold ${textPrimary} ${crossedOutClass}">${p.name || 'Anon'}</div>
+                        <div class="text-xs ${textMuted} mt-0.5 ${crossedOutClass}">${p.date}${visitTimeDisplay ? ` ${visitTimeDisplay}` : ''}</div>
                     </td>
-                    ${visibleCols.includes('findings') ? `<td class="p-3"><div class="text-xs ${textSecondary} line-clamp-2">${findingsDisplay}</div></td>` : ''}
-                    ${visibleCols.includes('plan') ? `<td class="p-3"><div class="text-xs font-bold ${textDark} mb-1">${p.plan || '-'}</div></td>` : ''}
+                    ${visibleCols.includes('findings') ? `<td class="p-3"><div class="text-xs ${textSecondary} line-clamp-2 ${crossedOutClass}">${findingsDisplay}</div></td>` : ''}
+                    ${visibleCols.includes('plan') ? `<td class="p-3"><div class="text-xs font-bold ${textDark} mb-1 ${crossedOutClass}">${p.plan || '-'}</div></td>` : ''}
                     <td class="p-3">
                         ${isProc ? `<div class="flex items-center gap-2">
                             <select onchange="globalThis.updateStatusQuick('${p.id}', this.value)" class="text-[8px] rounded px-1.5 py-1 ${statusObj.bg} ${statusObj.text} border font-bold flex-1">
-                                <option value="To-Do" class="text-gray-700" ${status === 'To-Do' ? 'selected' : ''}>To-Do ⬜</option>
-                                <option value="In-Progress" class="text-blue-700" ${status === 'In-Progress' ? 'selected' : ''}>In-Prog 🔵</option>
-                                <option value="Completed" class="text-emerald-700" ${status === 'Completed' ? 'selected' : ''}>Done ✅</option>
-                                <option value="Post-Op" class="text-amber-700" ${status === 'Post-Op' ? 'selected' : ''}>Post-Op ⭐</option>
+                                ${renderStatusOptionsMarkup(status)}
                             </select>
                             <span class="inline-block ${statusObj.bg} ${statusObj.text} px-2 py-1 rounded whitespace-nowrap font-bold text-[9px]">${statusObj.badge}</span>
                         </div>` : ''}
@@ -7722,6 +8109,14 @@
                     <span>Show this help</span>
                 </div>
                 <div class="shortcut-row">
+                    <span class="shortcut-key">↑</span>
+                    <span>Scroll up or move to the previous visible record</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">↓</span>
+                    <span>Scroll down or move to the next visible record</span>
+                </div>
+                <div class="shortcut-row">
                     <span class="shortcut-key">Ctrl + Shift + F</span>
                     <span>Advanced filters panel</span>
                 </div>
@@ -7786,10 +8181,12 @@
                 <div class="filter-group">
                     <div class="filter-label">📊 Status</div>
                     <div class="filter-checkbox-group">
-                        <label><input type="checkbox" class="filter-status" value="To-Do"> To-Do ⬜</label>
-                        <label><input type="checkbox" class="filter-status" value="In-Progress"> In-Progress 🔵</label>
-                        <label><input type="checkbox" class="filter-status" value="Completed"> Completed ✅</label>
-                        <label><input type="checkbox" class="filter-status" value="Post-Op"> Post-Op ⭐</label>
+                        <label><input type="checkbox" class="filter-status" value="NEW CONSULT"> NEW CONSULT</label>
+                        <label><input type="checkbox" class="filter-status" value="SURGICAL PATIENT (SAME DAY SURGERY)"> SURGICAL PATIENT (SAME DAY SURGERY)</label>
+                        <label><input type="checkbox" class="filter-status" value="NEW SURGICAL PATIENT (AM ADMIT)"> NEW SURGICAL PATIENT (AM ADMIT)</label>
+                        <label><input type="checkbox" class="filter-status" value="FOLLOW UP (CONSULT)"> FOLLOW UP (CONSULT)</label>
+                        <label><input type="checkbox" class="filter-status" value="FOLLOW UP (POST OP)"> FOLLOW UP (POST OP)</label>
+                        <label><input type="checkbox" class="filter-status" value="TO BE DISCHARGED/SIGNED OFF"> TO BE DISCHARGED/SIGNED OFF</label>
                     </div>
                 </div>
 
@@ -7907,12 +8304,18 @@
 
             <!-- Batch Operations Bar -->
             <div id="batch-operations" class="batch-operations">
-                <div class="batch-count" id="batch-count">0 selected</div>
-                <button id="batch-print-selected" onclick="globalThis.printSelectedPatientRecords()" class="px-3 py-1 bg-slate-700 text-white text-xs font-bold rounded hover:bg-slate-800" disabled>🖨️ Print Selected</button>
-                <button onclick="globalThis.batchChangeStatus()" class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Change Status</button>
-                <button onclick="globalThis.batchArchiveSelected()" class="px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded hover:bg-amber-700">Archive</button>
-                <button onclick="globalThis.batchDeleteSelected()" class="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700">Delete</button>
-                <button onclick="globalThis.cancelBatchOp()" class="px-3 py-1 bg-slate-400 text-white text-xs font-bold rounded hover:bg-slate-500 ml-auto">Cancel</button>
+                <div class="flex flex-col min-w-[128px]">
+                    <div class="batch-eyebrow">Selection Mode</div>
+                    <div class="batch-count" id="batch-count">0 selected</div>
+                </div>
+                <div class="batch-actions">
+                    <button id="batch-print-selected" onclick="globalThis.printSelectedPatientRecords()" class="px-3 py-1 bg-slate-700 text-white text-xs font-bold rounded hover:bg-slate-800" disabled>🖨️ Print Selected</button>
+                    <button onclick="globalThis.batchChangeStatus()" class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700">Change Status</button>
+                    <button onclick="globalThis.batchToggleCrossOut()" class="px-3 py-1 bg-rose-600 text-white text-xs font-bold rounded hover:bg-rose-700">Cross Out</button>
+                    <button onclick="globalThis.batchArchiveSelected()" class="px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded hover:bg-amber-700">Archive</button>
+                    <button onclick="globalThis.batchDeleteSelected()" class="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700">Delete</button>
+                </div>
+                <button onclick="globalThis.cancelBatchOp()" class="batch-dismiss px-3 py-1 bg-slate-400 text-white text-xs font-bold rounded hover:bg-slate-500">Clear Selection</button>
             </div>
 
             <div id="table-section" class="h-full">
@@ -7923,7 +8326,7 @@
                     <button class="view-btn" onclick="globalThis.setViewMode('grouped')">🏥 By Hospital</button>
                 </div>
 
-                <div class="text-[11px] text-slate-500 mb-2">Surgical logic: keyword match in Plan/Findings OR status in In-Progress/Completed/Post-Op.</div>
+                <div class="text-[11px] text-slate-500 mb-2">Surgical logic: keyword match in Plan/Findings or surgical follow-up status values.</div>
 
                 <!-- Filter Controls -->
                 <div id="main-table-header" class="flex gap-2 mb-2 p-3 bg-slate-50 border-b border-slate-200 flex-wrap items-center">
@@ -8103,7 +8506,7 @@
                         <div class="mt-2 flex justify-end">
                             <button onclick="globalThis.runCustomAnalytics()" class="px-3 py-2 bg-slate-700 text-white text-xs font-bold rounded hover:bg-slate-800">Run Custom Query</button>
                         </div>
-                        <div id="analytics-validation-message" class="text-xs text-slate-500 mt-2">Use key:value across patient columns (examples: icd: N20, cpt: 52356, supervisingMd: smith, procedureStatus: completed, any: westgate).</div>
+                        <div id="analytics-validation-message" class="text-xs text-slate-500 mt-2">Use key:value across patient columns (examples: icd: N20, cpt: 52356, supervisingMd: smith, procedureStatus: FOLLOW UP (POST OP), any: westgate).</div>
                     </div>
                     <div id="analytics-content" class="analytics-dashboard"></div>
                     <div id="analytics-details" class="mt-4"></div>
@@ -8252,10 +8655,12 @@
                 <p class="text-xs text-slate-500">Choose the new status for all selected records.</p>
                 <select id="batch-status-select" class="w-full p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm">
                     <option value="">Select status</option>
-                    <option value="To-Do">To-Do</option>
-                    <option value="In-Progress">In-Progress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Post-Op">Post-Op</option>
+                    <option value="NEW CONSULT">NEW CONSULT</option>
+                    <option value="SURGICAL PATIENT (SAME DAY SURGERY)">SURGICAL PATIENT (SAME DAY SURGERY)</option>
+                    <option value="NEW SURGICAL PATIENT (AM ADMIT)">NEW SURGICAL PATIENT (AM ADMIT)</option>
+                    <option value="FOLLOW UP (CONSULT)">FOLLOW UP (CONSULT)</option>
+                    <option value="FOLLOW UP (POST OP)">FOLLOW UP (POST OP)</option>
+                    <option value="TO BE DISCHARGED/SIGNED OFF">TO BE DISCHARGED/SIGNED OFF</option>
                 </select>
             </div>
             <div class="p-4 border-t flex gap-2 flex-shrink-0">
