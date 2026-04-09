@@ -94,13 +94,37 @@
         }
 
         .selection-underlay-target {
-            transition: opacity 0.18s ease, filter 0.18s ease;
+            transition: opacity 0.18s ease, filter 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
         }
 
         body.selection-mode-active .selection-underlay-target {
-            opacity: 0.3;
-            filter: grayscale(1);
+            opacity: 0.55;
+            filter: grayscale(1) saturate(0.2);
             pointer-events: none;
+        }
+
+        body.selection-mode-active .selection-underlay-target,
+        body.selection-mode-active .selection-underlay-target * {
+            cursor: not-allowed !important;
+        }
+
+        body.selection-mode-active .selection-underlay-target button,
+        body.selection-mode-active .selection-underlay-target select,
+        body.selection-mode-active .selection-underlay-target input,
+        body.selection-mode-active .selection-underlay-target textarea {
+            background: #e5e7eb !important;
+            color: #64748b !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: none !important;
+        }
+
+        body.selection-mode-active .selection-underlay-target input::placeholder,
+        body.selection-mode-active .selection-underlay-target textarea::placeholder,
+        body.selection-mode-active .selection-underlay-target label,
+        body.selection-mode-active .selection-underlay-target .text-slate-500,
+        body.selection-mode-active .selection-underlay-target .text-slate-600,
+        body.selection-mode-active .selection-underlay-target .text-slate-700 {
+            color: #94a3b8 !important;
         }
 
         .cross-out-target {
@@ -1754,6 +1778,13 @@
             renderUI();
         };
 
+        function setSelectionUnderlayLocked(isLocked) {
+            document.querySelectorAll('.selection-underlay-target').forEach((node) => {
+                node.toggleAttribute('inert', isLocked);
+                node.setAttribute('aria-disabled', isLocked ? 'true' : 'false');
+            });
+        }
+
         function updateSelectionTray() {
             const batchOps = document.getElementById('batch-operations');
             const batchCount = document.getElementById('batch-count');
@@ -1769,6 +1800,7 @@
             });
 
             document.body.classList.toggle('selection-mode-active', hasSelection);
+            setSelectionUnderlayLocked(hasSelection);
 
             syncSelectAllCheckbox();
         }
@@ -2328,7 +2360,7 @@
             <div class="flex-1 min-w-0">
                 <h1 class="text-xl font-black tracking-tight truncate">Clinical Rounding List</h1>
             </div>
-            <div class="flex gap-2">
+            <div class="selection-underlay-target flex gap-2">
                 <button onclick="document.getElementById('csv-file-input').click()" class="flex-shrink-0 px-3 py-2.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700">📥 Import Files</button>
                 <button onclick="window.openModal()" class="flex-shrink-0 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700">+ Add</button>
             </div>
@@ -2355,7 +2387,7 @@
         </div>
 
         <!-- Tabs -->
-        <nav class="px-2 py-2 bg-white border-b border-slate-100 flex gap-1 flex-shrink-0 overflow-x-auto">
+        <nav class="selection-underlay-target px-2 py-2 bg-white border-b border-slate-100 flex gap-1 flex-shrink-0 overflow-x-auto">
             <button id="tab-active-btn" onclick="window.setTab('active')" class="flex-shrink-0 px-2 py-2 rounded bg-blue-600 text-white font-bold text-xs uppercase">Census</button>
             <button id="tab-procedures-btn" onclick="window.setTab('procedures')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase">Surgical</button>
             <button id="tab-calendar-btn" onclick="window.setTab('calendar')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase">Calendar</button>

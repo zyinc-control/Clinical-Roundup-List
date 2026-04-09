@@ -207,13 +207,76 @@
             border-radius: 0.5rem;
             max-width: 500px;
             max-height: 80vh;
-            overflow-y: auto;
-            padding: 1.5rem;
+            width: min(500px, calc(100vw - 1rem));
+            overflow: hidden;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
         }
         
         body.dark-mode .shortcuts-content {
             background: #2a2a2a;
+        }
+
+        .shortcuts-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.25rem 0.75rem;
+            background: inherit;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        body.dark-mode .shortcuts-header {
+            border-bottom-color: #475569;
+        }
+
+        .shortcuts-title-wrap {
+            min-width: 0;
+        }
+
+        .shortcuts-scroll-note {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+
+        body.dark-mode .shortcuts-scroll-note {
+            color: #cbd5e1;
+        }
+
+        .shortcuts-close {
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 999px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #0f172a;
+            font-size: 1.25rem;
+            line-height: 1;
+            font-weight: 700;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        body.dark-mode .shortcuts-close {
+            background: #334155;
+            border-color: #475569;
+            color: #f8fafc;
+        }
+
+        .shortcuts-body {
+            overflow-y: auto;
+            padding: 1rem 1.25rem 1rem;
+            max-height: calc(80vh - 5.5rem);
+        }
+
+        .shortcuts-footer {
+            padding: 0 1.25rem 1.25rem;
         }
         
         .shortcut-row {
@@ -356,13 +419,37 @@
         }
 
         .selection-underlay-target {
-            transition: opacity 0.18s ease, filter 0.18s ease;
+            transition: opacity 0.18s ease, filter 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
         }
 
         body.selection-mode-active .selection-underlay-target {
-            opacity: 0.3;
-            filter: grayscale(1);
+            opacity: 0.55;
+            filter: grayscale(1) saturate(0.2);
             pointer-events: none;
+        }
+
+        body.selection-mode-active .selection-underlay-target,
+        body.selection-mode-active .selection-underlay-target * {
+            cursor: not-allowed !important;
+        }
+
+        body.selection-mode-active .selection-underlay-target button,
+        body.selection-mode-active .selection-underlay-target select,
+        body.selection-mode-active .selection-underlay-target input,
+        body.selection-mode-active .selection-underlay-target textarea {
+            background: #e5e7eb !important;
+            color: #64748b !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: none !important;
+        }
+
+        body.selection-mode-active .selection-underlay-target input::placeholder,
+        body.selection-mode-active .selection-underlay-target textarea::placeholder,
+        body.selection-mode-active .selection-underlay-target label,
+        body.selection-mode-active .selection-underlay-target .text-slate-500,
+        body.selection-mode-active .selection-underlay-target .text-slate-600,
+        body.selection-mode-active .selection-underlay-target .text-slate-700 {
+            color: #94a3b8 !important;
         }
         
         .batch-count {
@@ -3088,6 +3175,13 @@
         // ============================================================================= 
 
         // Update Batch Operation Count
+        function setSelectionUnderlayLocked(isLocked) {
+            document.querySelectorAll('.selection-underlay-target').forEach((node) => {
+                node.toggleAttribute('inert', isLocked);
+                node.setAttribute('aria-disabled', isLocked ? 'true' : 'false');
+            });
+        }
+
         function updateBatchOpCount() {
             const checkedCount = document.querySelectorAll('input[data-patient-checkbox]:checked').length;
             selectedPatientIds = new Set(
@@ -3111,6 +3205,7 @@
             }
 
             document.body.classList.toggle('selection-mode-active', checkedCount > 0);
+            setSelectionUnderlayLocked(checkedCount > 0);
 
             syncSelectAllCheckbox();
         }
@@ -5861,7 +5956,7 @@
             });
 
             [
-                '.shortcuts-content',
+                '.shortcuts-body',
                 '#patient-form',
                 '#handoff-text-area',
                 '#cal-grid',
@@ -7986,7 +8081,7 @@
             <div class="flex-1 min-w-0">
                 <h1 class="text-xl font-black tracking-tight truncate">Clinical Rounding List</h1>
             </div>
-            <div class="flex gap-2">
+            <div class="selection-underlay-target flex gap-2">
                 <button id="m365-login-btn" onclick="globalThis.m365Login && globalThis.m365Login()" class="flex-shrink-0 px-3 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">🔐 Login</button>
                 <button onclick="document.getElementById('csv-file-input').click()" class="flex-shrink-0 px-3 py-2.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700">📥 Import Files</button>
                 <button onclick="globalThis.openModal()" class="flex-shrink-0 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700">+ Add</button>
@@ -8079,9 +8174,15 @@
 
         <!-- Shortcuts Help Modal -->
         <div id="shortcuts-modal" class="shortcuts-modal">
-            <div class="shortcuts-content">
-                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">⌨️ Keyboard Shortcuts</h2>
-                
+            <div class="shortcuts-content" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+                <div class="shortcuts-header">
+                    <div class="shortcuts-title-wrap">
+                        <h2 id="shortcuts-title" class="text-xl font-bold flex items-center gap-2">⌨️ Keyboard Shortcuts</h2>
+                        <div class="shortcuts-scroll-note">Scroll for the full shortcut list</div>
+                    </div>
+                    <button type="button" class="shortcuts-close" onclick="globalThis.closeShortcutsHelp()" aria-label="Close keyboard shortcuts">×</button>
+                </div>
+                <div class="shortcuts-body">
                 <div class="shortcut-row">
                     <span class="shortcut-key">Ctrl + N</span>
                     <span>New patient record</span>
@@ -8138,8 +8239,10 @@
                     <span class="shortcut-key">Escape</span>
                     <span>Close any dialog/menu</span>
                 </div>
-                
+                </div>
+                <div class="shortcuts-footer">
                 <button onclick="globalThis.closeShortcutsHelp()" class="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700">Got It</button>
+                </div>
             </div>
         </div>
 
@@ -8271,7 +8374,7 @@
         <div class="swipe-hint">👆 Swipe left/right to navigate tabs on mobile</div>
 
         <!-- Tabs -->
-        <nav class="px-2 py-2 bg-white border-b border-slate-100 flex gap-1 flex-shrink-0 overflow-x-auto" aria-label="Main Navigation">
+        <nav class="selection-underlay-target px-2 py-2 bg-white border-b border-slate-100 flex gap-1 flex-shrink-0 overflow-x-auto" aria-label="Main Navigation">
             <button id="tab-active-btn" onclick="globalThis.setTab('active')" class="flex-shrink-0 px-2 py-2 rounded bg-blue-600 text-white font-bold text-xs uppercase" role="tab" aria-selected="true" aria-controls="active-panel">Census</button>
             <button id="tab-procedures-btn" onclick="globalThis.setTab('procedures')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="procedures-panel" title="Shows records tagged as surgical by keyword match in Plan/Findings or by surgical status.">Surgical</button>
             <button id="tab-calendar-btn" onclick="globalThis.setTab('calendar')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="calendar-panel">Calendar</button>
