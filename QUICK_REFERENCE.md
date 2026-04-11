@@ -179,7 +179,7 @@ const M365_CONFIG = {
 1. Reload HTML page
 2. Click Login button
 3. Login with M365 account
-4. Add patient → appears in table
+4. Add record → appears in table
 5. Check SharePoint List → patient there? ✓
 ```
 
@@ -217,11 +217,11 @@ if (!isConnected || !useM365) {
 
 | Feature | Local Mode | M365 Mode |
 |---------|-----------|----------|
-| Add patient | ✅ | ✅ |
+| Add record | ✅ | ✅ |
 | Edit patient | ✅ | ✅ |
 | Delete patient | ✅ | ✅ |
 | Archive patient | ✅ | ✅ |
-| Change status | ✅ | ✅ |
+| Change visit status | ✅ | ✅ |
 | CSV import | ✅ | ✅ |
 | Excel export | ✅ | ✅ |
 | Offline work | ✅ | ✅ |
@@ -370,14 +370,14 @@ Understand compliance               copilot-instructions.md
 ### ✅ Local Mode Working
 - [ ] Page loads without errors
 - [ ] Can see patient form
-- [ ] Can add patient → appears in table
+- [ ] Can add record → appears in table
 - [ ] Can edit patient → updates
 - [ ] Browser close/reopen → data persists
 
 ### ✅ M365 Mode Working
 - [ ] Page shows "Connected (M365)"
 - [ ] Can login
-- [ ] Can add patient → appears in table
+- [ ] Can add record → appears in table
 - [ ] SharePoint List has patient record
 - [ ] Other device sees data in 15 seconds
 

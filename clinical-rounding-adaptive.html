@@ -1328,6 +1328,274 @@
             text-transform: uppercase;
             font-weight: bold;
         }
+
+        .mobile-patient-list {
+            display: none;
+        }
+
+        .mobile-patient-list.active {
+            display: block;
+        }
+
+        .mobile-patient-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 0.9rem;
+            margin: 0 0 0.75rem;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+        }
+
+        body.dark-mode .mobile-patient-card {
+            background: #2a2a2a;
+            border-color: #475569;
+        }
+
+        .mobile-patient-card.stat {
+            border-width: 3px;
+            border-color: #991b1b;
+            background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            box-shadow: 0 14px 28px rgba(153, 27, 27, 0.35);
+        }
+
+        .mobile-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .mobile-card-name {
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1.2;
+            color: #0f172a;
+        }
+
+        body.dark-mode .mobile-card-name {
+            color: #f8fafc;
+        }
+
+        .mobile-patient-card.stat .mobile-card-name,
+        .mobile-patient-card.stat .mobile-card-meta,
+        .mobile-patient-card.stat .mobile-card-section,
+        .mobile-patient-card.stat .mobile-card-kicker {
+            color: white;
+        }
+
+        .mobile-card-meta {
+            margin-top: 0.2rem;
+            font-size: 0.74rem;
+            color: #475569;
+            line-height: 1.35;
+        }
+
+        .mobile-card-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .mobile-card-select {
+            width: 1.15rem;
+            height: 1.15rem;
+            margin-top: 0.2rem;
+            flex-shrink: 0;
+        }
+
+        .mobile-card-body {
+            display: grid;
+            gap: 0.55rem;
+        }
+
+        .mobile-card-section {
+            font-size: 0.82rem;
+            color: #334155;
+            line-height: 1.4;
+        }
+
+        body.dark-mode .mobile-card-section {
+            color: #cbd5e1;
+        }
+
+        .mobile-card-section strong {
+            display: block;
+            font-size: 0.68rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 0.15rem;
+        }
+
+        .mobile-patient-card.stat .mobile-card-section strong {
+            color: #fecaca;
+        }
+
+        .mobile-card-status-row {
+            display: grid;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .mobile-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            width: fit-content;
+            padding: 0.35rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+        }
+
+        .mobile-status-select {
+            width: 100%;
+            border-radius: 0.8rem;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.78rem;
+            font-weight: 800;
+            background: white;
+        }
+
+        .mobile-card-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.8rem;
+        }
+
+        .mobile-card-actions button {
+            min-height: 2.6rem;
+            border-radius: 0.8rem;
+            font-size: 0.8rem;
+            font-weight: 800;
+        }
+
+        .mobile-more-sheet {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 70;
+            padding: 1rem;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .mobile-more-sheet.active {
+            display: flex;
+        }
+
+        .mobile-more-panel {
+            width: min(100%, 32rem);
+            max-height: min(80vh, 42rem);
+            overflow-y: auto;
+            background: white;
+            border-radius: 1.25rem;
+            padding: 1rem;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.28);
+        }
+
+        body.dark-mode .mobile-more-panel {
+            background: #1e293b;
+            color: #f8fafc;
+        }
+
+        .mobile-more-title {
+            font-size: 0.95rem;
+            font-weight: 900;
+            color: #0f172a;
+            margin-bottom: 0.75rem;
+        }
+
+        body.dark-mode .mobile-more-title {
+            color: #f8fafc;
+        }
+
+        .mobile-more-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.6rem;
+        }
+
+        .mobile-more-grid button {
+            min-height: 3rem;
+            border-radius: 0.9rem;
+            font-size: 0.78rem;
+            font-weight: 800;
+            padding: 0.6rem;
+            text-align: left;
+        }
+
+        .mobile-more-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 0.9rem 0;
+        }
+
+        body.dark-mode .mobile-more-divider {
+            background: #475569;
+        }
+
+        .mobile-bottom-nav {
+            display: none;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 55;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid #e2e8f0;
+            padding: 0.45rem 0.5rem max(0.45rem, env(safe-area-inset-bottom));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.35rem;
+        }
+
+        body.dark-mode .mobile-bottom-nav {
+            background: rgba(30, 41, 59, 0.96);
+            border-top-color: #475569;
+        }
+
+        .mobile-bottom-nav button {
+            min-height: 3.15rem;
+            border-radius: 1rem;
+            border: none;
+            background: transparent;
+            color: #475569;
+            font-size: 0.72rem;
+            font-weight: 800;
+            line-height: 1.15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.18rem;
+        }
+
+        .mobile-bottom-nav button.active {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        body.dark-mode .mobile-bottom-nav button {
+            color: #cbd5e1;
+        }
+
+        body.dark-mode .mobile-bottom-nav button.active {
+            background: #1e3a8a;
+            color: #eff6ff;
+        }
         
         body.dark-mode .summary-label {
             color: #999;
@@ -1446,6 +1714,93 @@
             th, td {
                 padding: 0.75rem 0.5rem !important;
             }
+
+            header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.75rem;
+            }
+
+            .top-action-bar {
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                justify-content: stretch;
+            }
+
+            .top-action-btn {
+                min-width: 0;
+                width: 100%;
+                height: 2.7rem;
+                padding: 0 0.5rem;
+                font-size: 0.72rem;
+            }
+
+            .top-action-btn[data-mobile-secondary="true"] {
+                display: none !important;
+            }
+
+            #mobile-more-trigger {
+                display: inline-flex !important;
+            }
+
+            #connection-status-bar {
+                padding: 0.65rem 0.9rem;
+            }
+
+            #connection-status,
+            #status-detail,
+            .swipe-hint,
+            .desktop-tab-nav,
+            .view-toggle,
+            #main-table-header,
+            #table-section .overflow-x-auto,
+            #card-view-container,
+            #grouped-view-container {
+                display: none !important;
+            }
+
+            #summary-stats {
+                padding: 0.55rem 0.75rem;
+                gap: 0.45rem;
+            }
+
+            .mobile-bottom-nav {
+                display: grid;
+            }
+
+            .mobile-patient-list {
+                padding: 0.65rem 0.75rem 6rem;
+            }
+
+            .content-area {
+                padding-bottom: 5.75rem;
+            }
+
+            .batch-operations.active {
+                position: fixed;
+                left: 0.5rem;
+                right: 0.5rem;
+                top: auto;
+                bottom: 5.15rem;
+                width: auto;
+                margin: 0;
+                padding: 0.75rem;
+                gap: 0.45rem;
+                max-height: 42vh;
+                overflow-y: auto;
+            }
+
+            .batch-actions {
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .batch-dismiss {
+                margin-left: 0;
+                width: 100%;
+            }
         }
         
         /* Swipe gesture indication */
@@ -1561,6 +1916,15 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        @media (min-width: 769px) {
+            #mobile-more-trigger,
+            .mobile-more-sheet,
+            .mobile-bottom-nav,
+            .mobile-patient-list {
+                display: none !important;
+            }
         }
         
         /* Accessible table focus */
@@ -2228,6 +2592,55 @@
         function isDownstreamSurgicalWorkflowStatus(status) {
             const normalizedStatus = getSafeConfiguredStatus(status);
             return normalizedStatus === POST_OP_WORKFLOW_STATUS || normalizedStatus === DISCHARGE_WORKFLOW_STATUS;
+        }
+
+        function isCompactMobileViewport() {
+            return globalThis.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function shouldUseMobilePatientCards() {
+            return isCompactMobileViewport() && ['active', 'procedures', 'archive'].includes(currentTab);
+        }
+
+        function getMobilePrimaryTab(activeTab) {
+            return ['active', 'procedures', 'calendar'].includes(activeTab) ? activeTab : 'more';
+        }
+
+        globalThis.closeMobileMoreMenu = () => {
+            const sheet = document.getElementById('mobile-more-sheet');
+            const triggers = [document.getElementById('mobile-more-trigger'), document.getElementById('mobile-nav-more')];
+            if (sheet) {
+                sheet.classList.remove('active');
+                sheet.removeAttribute('open');
+            }
+            triggers.forEach((button) => button?.setAttribute('aria-expanded', 'false'));
+        };
+
+        globalThis.toggleMobileMoreMenu = (forceState) => {
+            const sheet = document.getElementById('mobile-more-sheet');
+            const triggers = [document.getElementById('mobile-more-trigger'), document.getElementById('mobile-nav-more')];
+            if (!sheet || !isCompactMobileViewport()) return;
+            const shouldOpen = typeof forceState === 'boolean' ? forceState : !sheet.classList.contains('active');
+            sheet.classList.toggle('active', shouldOpen);
+            if (shouldOpen) {
+                sheet.setAttribute('open', 'open');
+            } else {
+                sheet.removeAttribute('open');
+            }
+            triggers.forEach((button) => button?.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false'));
+        };
+
+        function updateMobileBottomNav(activeTab = currentTab) {
+            const currentMobileTab = getMobilePrimaryTab(activeTab);
+            document.querySelectorAll('[data-mobile-nav-tab]').forEach((button) => {
+                button.classList.toggle('active', button.dataset.mobileNavTab === currentMobileTab);
+            });
+        }
+
+        function summarizeMobileText(value, maxLength = 110) {
+            const normalized = String(value || '').replaceAll(/\s+/g, ' ').trim();
+            if (!normalized) return '—';
+            return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}…` : normalized;
         }
 
         function getStatusAccentHex(status) {
@@ -3795,6 +4208,10 @@
             const allowedModes = new Set(['table', 'card', 'grouped']);
             if (!allowedModes.has(mode)) mode = 'table';
 
+            if (isCompactMobileViewport()) {
+                mode = 'table';
+            }
+
             if (!options.bypassSelectionLock && selectedPatientIds.size > 0 && mode !== 'table') {
                 showToast('Selection mode is locked to Table View');
                 return;
@@ -5287,6 +5704,71 @@
             container.classList.add('active');
         };
 
+        globalThis.renderMobilePatientList = () => {
+            const container = document.getElementById('mobile-patient-list');
+            if (!container) return;
+
+            if (!shouldUseMobilePatientCards()) {
+                container.classList.remove('active');
+                container.innerHTML = '';
+                return;
+            }
+
+            const filtered = getFilteredData();
+            container.classList.add('active');
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="mobile-patient-card"><div class="mobile-card-name">No entries</div><div class="mobile-card-meta">Try clearing filters or switching tabs.</div></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map((patient) => {
+                const status = getSafeConfiguredStatus(getPatientStatus(patient));
+                const statusObj = STATUS_COLORS[status] || STATUS_COLORS[DEFAULT_RECORD_STATUS] || STATUS_COLORS['To-Do'];
+                const findingsDisplay = patient.findingsCodes?.length ? patient.findingsCodes.join(', ') : (patient.findingsText || '');
+                const isStat = patient.stat === true || patient.stat === 'true';
+                const isSelected = selectedPatientIds.has(patient.id);
+                const isCrossedOut = isPatientCrossedOut(patient.id);
+                const crossedOutClass = isCrossedOut ? 'cross-out-target' : '';
+                const isSurgical = isSurgicalCase(patient);
+                let kicker = 'Census Visit';
+                if (isStat) kicker = 'STAT Priority';
+                else if (isSurgical) kicker = 'Surgical Case';
+                const visitMeta = [patient.room || 'Room —', patient.hospital || 'Hospital —', patient.date || 'Date —'].join(' • ');
+                const planSummary = summarizeMobileText(patient.plan, 120);
+                const findingsSummary = summarizeMobileText(findingsDisplay, 120);
+
+                return `
+                    <article class="mobile-patient-card ${isStat ? 'stat' : ''} ${isCrossedOut ? 'crossed-out-row' : ''}">
+                        <div class="mobile-card-top">
+                            <div>
+                                <div class="mobile-card-kicker">${kicker}</div>
+                                <div class="mobile-card-name ${crossedOutClass}">${patient.name || 'Anon'}</div>
+                                <div class="mobile-card-meta ${crossedOutClass}">${visitMeta}</div>
+                            </div>
+                            <input class="mobile-card-select" type="checkbox" aria-label="Select ${patient.name || 'patient'}" ${isSelected ? 'checked' : ''} onchange="globalThis.togglePatientSelection('${patient.id}')">
+                        </div>
+
+                        <div class="mobile-card-body">
+                            <div class="mobile-card-section ${crossedOutClass}"><strong>Plan</strong>${planSummary}</div>
+                            <div class="mobile-card-section ${crossedOutClass}"><strong>Findings</strong>${findingsSummary}</div>
+                            ${patient.pending ? `<div class="mobile-card-section ${crossedOutClass}"><strong>Pending</strong>${summarizeMobileText(patient.pending, 90)}</div>` : ''}
+                        </div>
+
+                        <div class="mobile-card-status-row">
+                            <span class="mobile-status-pill ${statusObj.bg} ${statusObj.text}">${statusObj.badge} ${status}</span>
+                            ${isSurgical ? `<select onchange="globalThis.updateStatusQuick('${patient.id}', this.value)" class="mobile-status-select ${statusObj.bg} ${statusObj.text} border">${renderStatusOptionsMarkup(status)}</select>` : ''}
+                        </div>
+
+                        <div class="mobile-card-actions">
+                            <button onclick="globalThis.openModal('${patient.id}')" class="bg-blue-600 text-white hover:bg-blue-700">Edit</button>
+                            <button onclick="globalThis.printPatientRecord('${patient.id}')" class="bg-slate-700 text-white hover:bg-slate-800">Print</button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        };
+
         // Render Grouped View (By Hospital)
         globalThis.renderGroupedView = () => {
             const filtered = getFilteredData();
@@ -6350,9 +6832,10 @@
             const importBtn = document.querySelector('button[onclick*="csv-file-input"]');
             const addBtn = document.querySelector('button[onclick*="openModal"]');
             const loginBtn = document.getElementById('m365-login-btn');
+            const mobileAuthBtn = document.getElementById('mobile-auth-btn');
             const contentArea = document.querySelector('.content-area');
-            const statsArea = document.querySelector('.px-4.py-3.bg-white.border-b.border-slate-100.grid.grid-cols-3');
-            const tabNav = document.querySelector('nav.px-2.py-2.bg-white.border-b');
+            const statsArea = document.getElementById('summary-stats');
+            const tabNav = document.querySelector('.desktop-tab-nav');
             
             console.log('🔍 Elements found:', {
                 importBtn: !!importBtn,
@@ -6378,6 +6861,18 @@
                         loginBtn.onclick = () => globalThis.m365Logout && globalThis.m365Logout();
                     }
                 }
+                if (mobileAuthBtn) {
+                    if (isLocalModeActive()) {
+                        mobileAuthBtn.style.display = 'none';
+                    } else {
+                        mobileAuthBtn.style.display = '';
+                        mobileAuthBtn.textContent = 'Logout';
+                        mobileAuthBtn.onclick = () => {
+                            globalThis.closeMobileMoreMenu();
+                            globalThis.m365Logout && globalThis.m365Logout();
+                        };
+                    }
+                }
                 
                 // Show content, stats, and tabs
                 if (contentArea) contentArea.style.display = '';
@@ -6398,6 +6893,14 @@
                     loginBtn.style.display = '';
                     loginBtn.innerHTML = '<span class="top-action-icon" aria-hidden="true">🔐</span><span>Login</span>';
                     loginBtn.onclick = () => globalThis.m365Login && globalThis.m365Login();
+                }
+                if (mobileAuthBtn) {
+                    mobileAuthBtn.style.display = '';
+                    mobileAuthBtn.textContent = 'Login';
+                    mobileAuthBtn.onclick = () => {
+                        globalThis.closeMobileMoreMenu();
+                        globalThis.m365Login && globalThis.m365Login();
+                    };
                 }
                 
                 // Hide content, stats, and tabs
@@ -7043,6 +7546,8 @@
                 el.className = isActive ? activeClass : inactiveClass;
                 el.setAttribute('aria-selected', isActive ? 'true' : 'false');
             });
+
+            updateMobileBottomNav(activeTab);
         };
 
         // Force Refresh: Clears cache and re-renders display
@@ -7060,6 +7565,8 @@
                 showToast('Selection mode is locked to Census');
                 return;
             }
+
+            globalThis.closeMobileMoreMenu();
 
             // Force refresh when switching tabs
             globalThis.forceRefresh();
@@ -7217,18 +7724,29 @@
             const tableContainer = document.querySelector('#table-section .overflow-x-auto');
             const cardContainer = document.getElementById('card-view-container');
             const groupedContainer = document.getElementById('grouped-view-container');
+            const mobileListContainer = document.getElementById('mobile-patient-list');
+            const useMobileCards = shouldUseMobilePatientCards();
 
             if (currentTab === 'calendar') {
                 renderCalendar();
             } else {
-                if (tableContainer) tableContainer.style.display = currentViewMode === 'table' ? '' : 'none';
-                if (cardContainer) cardContainer.classList.toggle('active', currentViewMode === 'card');
-                if (groupedContainer) groupedContainer.style.display = currentViewMode === 'grouped' ? '' : 'none';
+                let tableDisplay = 'none';
+                let groupedDisplay = 'none';
+                if (!useMobileCards) {
+                    tableDisplay = currentViewMode === 'table' ? '' : 'none';
+                    groupedDisplay = currentViewMode === 'grouped' ? '' : 'none';
+                }
+                const showCardContainer = !useMobileCards && currentViewMode === 'card';
+                if (mobileListContainer) mobileListContainer.classList.toggle('active', useMobileCards);
+                if (tableContainer) tableContainer.style.display = tableDisplay;
+                if (cardContainer) cardContainer.classList.toggle('active', showCardContainer);
+                if (groupedContainer) groupedContainer.style.display = groupedDisplay;
 
                 renderMainTable();
+                globalThis.renderMobilePatientList?.();
                 // Ensure card view and grouped view are properly re-rendered whenever renderUI is called
                 // This fixes the issue where switching tabs doesn't update the card/grouped view content
-                if (typeof currentViewMode !== 'undefined') {
+                if (!useMobileCards && typeof currentViewMode !== 'undefined') {
                     if (currentViewMode === 'card') {
                         // Clear container before rendering to ensure fresh content
                         if (cardContainer) cardContainer.innerHTML = '';
@@ -8181,6 +8699,9 @@
                 <button onclick="globalThis.showShortcutsHelp()" title="Keyboard Shortcuts (Ctrl+?)" class="top-action-btn flex-shrink-0 bg-slate-600 text-white hover:bg-slate-700">
                     <span class="top-action-icon" aria-hidden="true">?</span><span>Help</span>
                 </button>
+                <button id="mobile-more-trigger" type="button" onclick="globalThis.toggleMobileMoreMenu()" aria-expanded="false" aria-controls="mobile-more-sheet" class="top-action-btn flex-shrink-0 bg-slate-900 text-white hover:bg-black">
+                    <span class="top-action-icon" aria-hidden="true">☰</span><span>More</span>
+                </button>
             </div>
         </header>
 
@@ -8456,8 +8977,35 @@
             <span id="status-detail" class="text-xs text-amber-700 font-semibold">No persistence</span>
         </div>
 
+        <dialog id="mobile-more-sheet" class="mobile-more-sheet" aria-label="More Actions">
+            <button type="button" class="mobile-more-backdrop" onclick="globalThis.closeMobileMoreMenu()" aria-label="Close more actions"></button>
+            <div class="mobile-more-panel">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-base font-black tracking-tight text-slate-900">More Actions</h2>
+                    <button type="button" onclick="globalThis.closeMobileMoreMenu()" class="text-xl font-bold text-slate-500">×</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button id="mobile-auth-btn" onclick="globalThis.m365Login && globalThis.m365Login(); globalThis.closeMobileMoreMenu();" class="px-3 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold">Login</button>
+                    <button onclick="document.getElementById('csv-file-input').click(); globalThis.closeMobileMoreMenu();" class="px-3 py-3 rounded-xl bg-green-600 text-white text-sm font-bold">Import</button>
+                    <button onclick="globalThis.toggleSettings(); globalThis.closeMobileMoreMenu();" class="px-3 py-3 rounded-xl bg-slate-800 text-white text-sm font-bold">Settings</button>
+                    <button onclick="globalThis.showShortcutsHelp(); globalThis.closeMobileMoreMenu();" class="px-3 py-3 rounded-xl bg-slate-700 text-white text-sm font-bold">Help</button>
+                </div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-2">Tabs</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="globalThis.setTab('oncall')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Staffing</button>
+                    <button onclick="globalThis.setTab('archive')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Archive</button>
+                    <button onclick="globalThis.setTab('timeline')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Timeline</button>
+                    <button onclick="globalThis.setTab('analytics')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Analytics</button>
+                    <button onclick="globalThis.setTab('procedure-log')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Procedures</button>
+                    <button onclick="globalThis.setTab('shift-report')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Shifts</button>
+                    <button onclick="globalThis.setTab('reports')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Reports</button>
+                    <button onclick="globalThis.setTab('audit')" class="px-3 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold">Audit</button>
+                </div>
+            </div>
+        </dialog>
+
         <!-- Stats -->
-        <div class="px-4 py-3 bg-white border-b border-slate-100 grid grid-cols-3 gap-2 flex-shrink-0">
+        <div id="summary-stats" class="px-4 py-3 bg-white border-b border-slate-100 grid grid-cols-3 gap-2 flex-shrink-0">
             <div class="text-center"><p class="text-[8px] font-bold text-slate-500 uppercase">Active</p><p id="count-total" class="text-lg font-black text-slate-900">0</p></div>
             <div class="text-center"><p class="text-[8px] font-bold text-blue-600 uppercase">Proc</p><p id="count-procedures" class="text-lg font-black text-blue-600">0</p></div>
             <div class="text-center"><p class="text-[8px] font-bold text-slate-500 uppercase">Archive</p><p id="count-archived" class="text-lg font-black text-slate-500">0</p></div>
@@ -8466,7 +9014,7 @@
         <div class="swipe-hint">👆 Swipe left/right to navigate tabs on mobile</div>
 
         <!-- Tabs -->
-        <nav class="selection-underlay-target px-2 py-2 bg-white border-b border-slate-100 flex gap-1 flex-shrink-0 overflow-x-auto" aria-label="Main Navigation">
+        <nav class="selection-underlay-target desktop-tab-nav px-2 py-2 bg-white border-b border-slate-100 flex gap-1 flex-shrink-0 overflow-x-auto" aria-label="Main Navigation">
             <button id="tab-active-btn" onclick="globalThis.setTab('active')" class="flex-shrink-0 px-2 py-2 rounded bg-blue-600 text-white font-bold text-xs uppercase" role="tab" aria-selected="true" aria-controls="active-panel">Census</button>
             <button id="tab-procedures-btn" onclick="globalThis.setTab('procedures')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="procedures-panel" title="Shows records tagged as surgical by keyword match in Plan/Findings or by surgical status.">Surgical</button>
             <button id="tab-calendar-btn" onclick="globalThis.setTab('calendar')" class="flex-shrink-0 px-2 py-2 rounded text-slate-400 font-bold text-xs uppercase" role="tab" aria-selected="false" aria-controls="calendar-panel">Calendar</button>
@@ -8481,7 +9029,7 @@
         </nav>
 
         <!-- Content Area -->
-        <div class="content-area">
+        <div id="main-content" class="content-area" tabindex="-1">
             <!-- Advanced Search Panel -->
             <div id="advanced-search" class="advanced-search selection-underlay-target">
                 <label for="search-box" class="text-xs font-bold text-slate-600 block mb-1">🔍 Search</label>
@@ -8519,6 +9067,8 @@
                 </div>
 
                 <div class="text-[11px] text-slate-500 mb-2">Surgical logic: keyword match in Plan/Findings or surgical follow-up status values.</div>
+
+                <div id="mobile-patient-list" class="mobile-patient-list"></div>
 
                 <!-- Filter Controls -->
                 <div id="main-table-header" class="selection-underlay-target flex gap-2 mb-2 p-3 bg-slate-50 border-b border-slate-200 flex-wrap items-center">
@@ -8806,6 +9356,13 @@
                     <div id="shift-report-content"></div>
                 </div>
             </div>
+
+            <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+                <button type="button" data-mobile-nav-tab="active" onclick="globalThis.setTab('active')">Census</button>
+                <button type="button" data-mobile-nav-tab="procedures" onclick="globalThis.setTab('procedures')">Surgical</button>
+                <button type="button" data-mobile-nav-tab="calendar" onclick="globalThis.setTab('calendar')">Calendar</button>
+                <button id="mobile-nav-more" type="button" data-mobile-nav-tab="more" onclick="globalThis.toggleMobileMoreMenu()" aria-expanded="false" aria-controls="mobile-more-sheet">More</button>
+            </nav>
         </div>
 
     </div>
@@ -11338,44 +11895,27 @@
 
         // Mobile Action Bar Initialization
         globalThis.initMobileActionBar = () => {
-            const actionBar = document.querySelector('.mobile-action-bar');
-            if (!actionBar) return;
+            const mediaQuery = globalThis.matchMedia('(max-width: 768px)');
+            const syncMobileShell = () => {
+                if (!mediaQuery.matches) {
+                    globalThis.closeMobileMoreMenu();
+                }
+                updateMobileBottomNav(currentTab);
+            };
 
-            const addBtn = actionBar.querySelector('[data-action="add"]');
-            const archiveBtn = actionBar.querySelector('[data-action="archive"]');
-            const deleteBtn = actionBar.querySelector('[data-action="delete"]');
+            syncMobileShell();
 
-            if (addBtn) {
-                addBtn.addEventListener('click', () => {
-                    globalThis.openModal();
-                });
+            if (typeof mediaQuery.addEventListener === 'function') {
+                mediaQuery.addEventListener('change', syncMobileShell);
+            } else if (typeof mediaQuery.addListener === 'function') {
+                mediaQuery.addListener(syncMobileShell);
             }
 
-            if (archiveBtn) {
-                archiveBtn.addEventListener('click', () => {
-                    const selected = Array.from(selectedPatientIds);
-                    if (selected.length === 0) {
-                        showToast('⚠️  Select patients to archive');
-                        return;
-                    }
-                    if (confirm(`Archive ${selected.length} patient(s)?`)) {
-                        selected.forEach(id => globalThis.toggleArchive(id, true));
-                    }
-                });
-            }
-
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', () => {
-                    const selected = Array.from(selectedPatientIds);
-                    if (selected.length === 0) {
-                        showToast('⚠️  Select patients to delete');
-                        return;
-                    }
-                    if (confirm(`Delete ${selected.length} patient(s)? This cannot be undone.`)) {
-                        selected.forEach(id => globalThis.deletePatient(id));
-                    }
-                });
-            }
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    globalThis.closeMobileMoreMenu();
+                }
+            });
         };
 
         // Respect User's Motion Preferences

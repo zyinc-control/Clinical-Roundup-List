@@ -9,7 +9,7 @@ Welcome to the Clinical Rounding Platform! This guide walks you through using th
 3. [Dashboard Overview](#dashboard-overview)
 4. [Managing Patients](#managing-patients)
 5. [Tabs & Views](#tabs--views)
-6. [CSV Import & Excel Export](#csv-import--excel-export)
+6. [Import Files & Reports](#import-files--reports)
 7. [On-Call Scheduling](#on-call-scheduling)
 8. [Tips & Keyboard Shortcuts](#tips--keyboard-shortcuts)
 9. [Troubleshooting](#troubleshooting)
@@ -21,13 +21,13 @@ Welcome to the Clinical Rounding Platform! This guide walks you through using th
 ### 🔄 Daily Rounding Workflow
 ```mermaid
 flowchart TD
-    A([Start Shift]) --> B{Sign In}
+   A([Start Shift]) --> B{Login}
     B --> C[Review Census Tab]
     C --> D{New Patient?}
-    D -- Yes --> E[Click + Add Patient]
+   D -- Yes --> E[Click Add Record]
     D -- No --> F[Select Existing Patient]
     E --> G[Enter Details & Save]
-    F --> H[Update Status & Findings]
+   F --> H[Update Visit Status & Findings]
     G --> I{Rounds Complete?}
     H --> I
     I -- No --> C
@@ -84,13 +84,13 @@ flowchart TD
 The app uses your organizational account for secure access.
 
 1. Open the app in your browser
-2. Click **Sign In** (top-right corner)
+2. Click **Login** in the top action bar
 3. Enter your organizational email (e.g., `john.smith@yourdomain.com`)
 4. Enter your password
 5. Approve multi-factor authentication (MFA) if prompted
 6. You're in! ✅
 
-**Note**: On first login, you may see "Local Mode" until credentials are configured. The app works in both modes—local (memory storage) and cloud (M365/SharePoint sync).
+**Note**: On first login, you may see "Local Mode" until credentials are configured. The app works in both modes: local storage for immediate use and cloud sync through M365/SharePoint when configured. After authentication, the same top-bar button changes from **Login** to **Logout**.
 
 ### Your First Look
 
@@ -99,7 +99,8 @@ Once logged in, you'll see:
 - **Status indicator** - "Connected (M365)" or "Local Mode" or "Offline"
 - **Quick stats** - Active patients, procedures, archived counts
 - **Tab navigation** - Jump between Census, Surgical, Calendar, Staffing, Archive, Timeline, Analytics, Reports, Audit, Procedures, Shifts
-- **Advanced search** - Find patients instantly
+- **Top action bar** - Login/Logout, Import Files, Add Record, Adv. Filters, Search, Settings, Help
+- **Search + Adv. Filters** - Find patients instantly and narrow with presets, dates, statuses, and hospitals
 - **Patient table** - All active patients with sorting and filtering
 
 ### Connection Modes
@@ -114,14 +115,16 @@ The app has three modes depending on your setup:
 
 **For admins**: If you see "Local Mode", your M365 credentials may not be configured yet. Contact your IT administrator.
 
-### Patient Status Colors
+### Visit Workflow Statuses
 
 | Status | Color | Meaning | Icon |
 |--------|-------|---------|------|
-| **To-Do** | Gray | Not started | ⬜ |
-| **In-Progress** | Blue | Currently being managed | 🔵 |
-| **Completed** | Green | Finished | ✅ |
-| **Post-Op** | Amber | Post-operative period | ⭐ |
+| **NEW CONSULT** | Slate | New consult visit | NC |
+| **SURGICAL PATIENT (SAME DAY SURGERY)** | Blue | Active same-day surgical workflow | SDS |
+| **NEW SURGICAL PATIENT (AM ADMIT)** | Cyan | New AM surgical admit | AM |
+| **FOLLOW UP (CONSULT)** | Green | Non-post-op follow-up visit | FU |
+| **FOLLOW UP (POST OP)** | Amber | Post-op follow-up | PO |
+| **TO BE DISCHARGED/SIGNED OFF** | Rose | Ready to sign off or discharge | DC |
 | **STAT** | Bright Red | Urgent/Priority (entire card goes red) | 🔴 |
 
 **STAT Priority Visual**: When you toggle STAT priority ON in the patient form, the entire "Stat Acuity" card becomes bright red with a thick dark border and red glow effect. This makes urgent cases impossible to miss.
@@ -137,15 +140,21 @@ The main screen provides an overview of patient census and status.
 - **Status Indicator**: Shows connection status (Connected/Offline) and data persistence mode
 - **Patient Stats**: Quick counts at a glance (Active, Procedures, Archived)
 - **Tab Navigation**: Access different views and tools (11 tabs available)
-- **Advanced Search**: Keyword search + quick filter buttons
+- **Search + Adv. Filters**: Keyword search panel plus advanced filter presets and detailed checkboxes
 - **Patient Table/View**: Multiple view modes available
-- **Batch Operations**: Select multiple patients for bulk actions
+- **Batch Operations**: Select multiple patients for bulk actions inside Selection Mode
 
 ### Search & Quick Filters
 
-**🔍 Advanced Search** (Ctrl/Cmd+/):
-- Search by name, MRN, room, hospital, or findings
+**🔍 Search** (Ctrl/Cmd+/):
+- Search by name, MRN, room, hospital, plan, or findings
 - Results update in real time as you type
+- The Search panel also contains the quick-filter buttons below
+
+**🔽 Adv. Filters** (Ctrl/Cmd+Shift+F):
+- Open saved presets such as Morning Rounds, Post-Op Check, STAT Cases, and Pending Tests
+- Filter by date range, hospital, status, and priority
+- Combine Adv. Filters with Search when quick buttons are not enough
 
 **Quick Filter Buttons**:
 - **🔴 STAT Only** - Show only urgent/priority patients
@@ -163,7 +172,7 @@ The main screen provides an overview of patient census and status.
 - **Findings**: Clinical notes (abbreviated)
 - **Plan**: Treatment plan (abbreviated)
 - **MD**: Supervising physician
-- **Status**: Procedure status (dropdown to change)
+- **Status**: Visit workflow status dropdown for quick changes
 
 ### View Modes
 
@@ -178,7 +187,7 @@ The app offers three ways to view patient data:
 
 ### Adding a New Patient
 
-1. Click **+ Add Patient** button (top center)
+1. Click **Add Record** in the top action bar
 2. Fill in the form fields:
    - **Room** - Room number (required)
    - **Date** - Today's date (or select a different date)
@@ -190,7 +199,7 @@ The app offers three ways to view patient data:
    - **Pending** - Lab work, imaging, procedures
    - **Follow-Up** - Follow-up appointments
    - **STAT Priority** - Toggle for urgent cases (shown as red block label in form)
-   - **Procedure Status** - To-Do, In-Progress, Completed, Post-Op
+   - **Procedure Status** - NEW CONSULT, SURGICAL PATIENT (SAME DAY SURGERY), NEW SURGICAL PATIENT (AM ADMIT), FOLLOW UP (CONSULT), FOLLOW UP (POST OP), or TO BE DISCHARGED/SIGNED OFF
    - **Billing Codes** - CPT/ICD codes (if you have billing permissions)
 
 3. Click **Save** to add the patient
@@ -254,8 +263,17 @@ Without opening the full patient form:
 
 1. Find the patient in the table
 2. Use the **Status dropdown** (rightmost column)
-3. Select new status: To-Do → In-Progress → Completed → Post-Op
+3. Select the new workflow status from the six current visit-status options
 4. Status updates instantly
+
+### Selection Mode
+
+When you select one or more rows with the table checkboxes, the app enters **Selection Mode**.
+
+- A sticky batch bar appears with **Print Selected**, **Change Status**, **Archive**, **Delete**, and **Clear Selection**
+- The app stays locked to **Census** and **Table View** until you clear the selection
+- You can keep scrolling the table and keep selecting or unselecting rows
+- **Change Status** prompts for the new workflow status and then requires a change note before saving
 
 ### Archiving a Patient
 
@@ -297,16 +315,19 @@ The Census tab shows all **active, ongoing patient records**.
 
 1. **Morning Rounds**: Review all patients, update findings
 2. **During Rounds**: Quick status changes via dropdown
-3. **Add New Patients**: Click + Add Patient as they arrive
+3. **Add New Patients**: Click **Add Record** as they arrive
 4. **End of Day**: Review pending items, archive discharged patients
 
 #### Batch Operations
 
 Select patients using checkboxes on the left, then:
-- **Change Status** - Update procedure status for selected patients
+- **Print Selected** - Open a print-friendly view for the selected records
+- **Change Status** - Update visit workflow status for selected patients
 - **Archive** - Move to Archive tab
 - **Delete** - Permanently remove (admin only)
-- **Cancel** - Deselect all
+- **Clear Selection** - Exit Selection Mode
+
+**Important**: While rows are selected, the app locks to **Census** and **Table View** so batch actions stay predictable.
 
 ### The Surgical Tab
 **Keyboard Shortcut**: Alt+S
@@ -319,12 +340,12 @@ The Surgical tab shows only **procedures and surgical cases** (filtered by keywo
 - **Procedure Tracking**: Follow pre-op, operative, and post-op phases
 - **Coordination**: See which procedures are planned vs. in progress
 
-#### Status Workflow for Procedures
+#### Common Surgical Workflow
 
-1. **To-Do** - Scheduled, not started
-2. **In-Progress** - Actively in operating room
-3. **Completed** - Finished, monitoring post-op
-4. **Post-Op** - Recovery phase, monitoring for complications
+1. **NEW CONSULT** - Initial evaluation
+2. **SURGICAL PATIENT (SAME DAY SURGERY)** or **NEW SURGICAL PATIENT (AM ADMIT)** - Active surgical workflow
+3. **FOLLOW UP (POST OP)** - Post-operative monitoring and follow-up
+4. **TO BE DISCHARGED/SIGNED OFF** - Ready for discharge or sign-off
 
 #### Filtering
 
@@ -431,7 +452,7 @@ Use format: `key:value`
 
 **Allowed keys**:
 - `hospital` - Filter by facility (e.g., `hospital:WGMC`)
-- `status` - Filter by procedure status (e.g., `status:In-Progress`)
+- `procedureStatus` - Filter by visit workflow status (e.g., `procedureStatus:FOLLOW UP (POST OP)`)
 - `mrn` - Find specific patient (e.g., `mrn:12345`)
 - `name` - Search by patient name (e.g., `name:Smith`)
 - `date` - Filter by date (e.g., `date:2026-01-18`)
@@ -441,20 +462,20 @@ The app validates format before executing and blocks invalid queries with helpfu
 
 ### The Reports Tab
 
-The Reports tab provides **exportable summaries** of patient data and metrics.
+The Reports tab provides a **PDF report workflow** with on-page preview.
 
 #### Available Reports
 
-- **Daily Census Report** - Current patient count and status
-- **Procedure Summary** - OR schedule and outcomes
-- **Provider Workload** - Cases per physician
-- **Hospital Utilization** - Bed usage by facility
+- **Daily Rounding** - Current patient count and visit status
+- **Surgical Procedures** - Surgical cases and outcomes
+- **Patient Summary** - Patient-level summary view
+- **Hospital Census** - Bed usage by facility
 
 #### Export Options
 
-- Download as PDF for printing
-- Export to Excel for further analysis
-- Email reports directly to team
+- Click **Generate PDF** to build the report preview in-page
+- Use **Print** for the browser print dialog
+- Use **Download PDF** to save the generated report
 
 ### The Audit Tab
 
@@ -493,11 +514,11 @@ The Procedures tab provides **detailed procedure tracking** separate from census
 
 #### Procedure Status Tracking
 
-- **Scheduled** - Awaiting OR time
-- **Pre-Op** - Preparations underway
-- **In-Progress** - Active procedure
-- **Post-Op** - Recovery monitoring
-- **Discharged** - Completed with follow-up arranged
+- **NEW CONSULT** - Initial evaluation
+- **SURGICAL PATIENT (SAME DAY SURGERY)** - Same-day surgical case
+- **NEW SURGICAL PATIENT (AM ADMIT)** - AM surgical admit
+- **FOLLOW UP (POST OP)** - Post-op monitoring
+- **TO BE DISCHARGED/SIGNED OFF** - Discharge/sign-off stage
 
 ### The Shifts Tab
 
@@ -519,7 +540,7 @@ The system highlights:
 
 ---
 
-## CSV Import & Excel Export
+## Import Files & Reports
 
 ### Import Census from Excel
 
@@ -594,29 +615,25 @@ BEMC,,,,,,,,
 5039,2026-01-12,Jones,1955-03-20,54321,"hematuria","Stent removal","Pandey","Imaging","1 week"
 ```
 
-### Export Census to Excel/OneDrive
+### PDF Reports Export
 
-Export your current census as an Excel file to OneDrive.
+The current visible export workflow is inside the **Reports** tab.
 
-#### What Gets Exported
+#### How to Export a Report
 
-- **On-call assignments** for today
-- **All active patients** grouped by hospital
-- **10 core columns**: Room, Date, Name, DOB, MRN, Findings, Plan, MD, Pending, Follow-Up
-- **Versioned filename**: `Rounding List 2026-01-12.xlsx`
-- **Latest pointer**: `Rounding List - Latest.xlsx` (always current)
+1. Open **Reports**
+2. Choose a report type
+3. Optionally filter by date and hospital
+4. Click **Generate PDF**
+5. Review the preview
+6. Click **Print** or **Download PDF**
 
-#### How to Export
+#### Current Report Types
 
-1. Click **Export to OneDrive** button
-2. Wait for "✅ Exported" message
-3. File uploads to your OneDrive: `/Clinical Rounding/Rounding List {DATE}.xlsx`
-
-#### After Export
-
-- Open Excel file in OneDrive or locally
-- Edit, print, or share with colleagues
-- Changes in Excel are **not** synced back to the app (export is one-way)
+- **Daily Rounding**
+- **Surgical Procedures**
+- **Patient Summary**
+- **Hospital Census**
 
 ---
 
@@ -659,7 +676,7 @@ The Staffing tab manages **physician on-call coverage**.
 ### Keyboard Shortcuts
 
 **Patient Management**:
-- `Ctrl+N` (or `Cmd+N`) - New patient
+- `Ctrl+N` (or `Cmd+N`) - New record
 - `Ctrl+E` (or `Cmd+E`) - Export to Excel
 - `Ctrl+P` (or `Cmd+P`) - Print selected records
 
@@ -671,9 +688,12 @@ The Staffing tab manages **physician on-call coverage**.
 - `Alt+X` - Archive tab
 
 **App Controls**:
-- `Ctrl+/` (or `Cmd+/`) - Advanced search
+- `Ctrl+/` (or `Cmd+/`) - Search panel
+- `Ctrl+Shift+F` (or `Cmd+Shift+F`) - Adv. Filters panel
 - `Ctrl+,` (or `Cmd+,`) - Settings panel
-- `Ctrl+Shift+?` - Show all shortcuts
+- `Ctrl+?` (or `Cmd+?`) - Show all shortcuts
+- `↑` - Scroll up or move to the previous visible record
+- `↓` - Scroll down or move to the next visible record
 - `Escape` - Close search, settings, or help
 
 ### Mobile Tips
@@ -682,7 +702,7 @@ The Staffing tab manages **physician on-call coverage**.
 - **Swipe left/right**: Navigate between tabs on mobile
 - **Tap and hold**: Right-click menu on some devices (if supported)
 - **Tap row**: Open patient details
-- **Status dropdown**: Quick-change procedure status without opening full form
+- **Status dropdown**: Quick-change visit workflow status without opening full form
 
 ### Desktop Tips
 
@@ -701,8 +721,9 @@ The Staffing tab manages **physician on-call coverage**.
 
 ### Search Tips
 
-- Use **Advanced Search** (Ctrl+/) for quick filtering
-- Combine search with **Quick Filter buttons** (STAT Only, Procedures, Pending Tests)
+- Use **Search** (Ctrl+/) for quick filtering
+- Use **Adv. Filters** (Ctrl+Shift+F) for presets, date ranges, and status filters
+- Combine Search with quick buttons such as **STAT Only**, **Procedures**, and **Pending Tests**
 - Search works across all fields: name, MRN, findings, plan, hospital
 - Results update in real-time as you type
 
@@ -753,16 +774,16 @@ The Staffing tab manages **physician on-call coverage**.
 3. If billing codes show errors, you may not have **billing permissions** (expected for clinicians)
 4. Check your **internet connection**
 
-### "Can't export to OneDrive"
+### "Can't generate a PDF report"
 
-**Problem**: Export button doesn't work or fails.
+**Problem**: The Reports tab does not build a preview or the PDF download is unavailable.
 
 **Solutions**:
-1. Verify you're **signed in** with your organizational account
-2. Check that you have **OneDrive access** (IT admin can verify)
-3. Ensure the `/Clinical Rounding` folder exists in your OneDrive (or create it)
-4. If permissions error, ask your IT admin to grant `Files.ReadWrite` permission
-5. Try exporting again; if it fails, contact support
+1. Make sure the selected date and hospital still return matching records
+2. Change the report type and try **Generate PDF** again
+3. Refresh the page and reopen the Reports tab
+4. Check browser console errors if the preview area stays blank
+5. If the issue persists, contact support with the report type and filters you used
 
 ### "Data not syncing"
 
@@ -821,7 +842,7 @@ The Staffing tab manages **physician on-call coverage**.
 
 ### In-App Help
 
-- Click the **?** icon (top right, if available) for context-sensitive help
+- Click the **Help** button in the top action bar for the shortcuts modal
 - Hover over field labels for tooltips (coming soon)
 - Status messages at the bottom give real-time feedback
 
@@ -859,7 +880,7 @@ A: According to your hospital's data retention policy. Ask your IT admin.
 A: Yes, the app is cloud-based. Only your organizational login is required.
 
 **Q: How do I print a patient record?**  
-A: Use your browser's Print function (Ctrl+P) to print the current view, or export to Excel first.
+A: Select rows and use **Print Selected** in Selection Mode, or use the **Print** action from the Reports preview.
 
 **Q: Is my data encrypted?**  
 A: Yes, all data is encrypted in transit (HTTPS) and at rest in SharePoint. Access is audited and logged.
@@ -899,6 +920,6 @@ A: **Import New Only** = Add new records, skip duplicates (safe if unsure). **Im
 
 ---
 
-**Last Updated**: March 18, 2026
+**Last Updated**: April 9, 2026
 
 For the latest version of this guide, check your app's Help section or contact your administrator.
