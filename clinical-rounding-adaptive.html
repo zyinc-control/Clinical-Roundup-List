@@ -6024,6 +6024,22 @@
         // ============================================================================
         // PDF REPORTS — uses jsPDF + jsPDF-autotable (already loaded in <head>)
         // ============================================================================
+        function syncReportFiltersFromContext() {
+            const reportDateInput = document.getElementById('report-date');
+            const reportHospitalInput = document.getElementById('report-hospital');
+            const filterDate = document.getElementById('filter-date')?.value || '';
+            const filterHospital = document.getElementById('filter-hospital')?.value || '';
+            const quickDate = globalThis._quickFilterType === 'date' ? (globalThis._quickFilterDate || '') : '';
+
+            if (reportDateInput) {
+                reportDateInput.value = filterDate || quickDate || '';
+            }
+
+            if (reportHospitalInput) {
+                reportHospitalInput.value = filterHospital || '';
+            }
+        }
+
         globalThis.generatePDFReport = () => {
             const reportType = document.getElementById('report-type')?.value || 'daily';
             const reportDate = document.getElementById('report-date')?.value || '';
@@ -8156,6 +8172,7 @@
                 globalThis.loadAnalyticsDashboard();
             } else if (tab === 'reports') {
                 document.getElementById('reports-section')?.classList.remove('hidden');
+                syncReportFiltersFromContext();
             } else if (tab === 'audit') {
                 document.getElementById('audit-section')?.classList.remove('hidden');
                 globalThis.loadAuditLogs();
@@ -8326,7 +8343,7 @@
                 const isProc = isSurgicalCase(p);
                 const status = getSafeConfiguredStatus(getPatientStatus(p));
                 const statusObj = STATUS_COLORS[status] || STATUS_COLORS[DEFAULT_RECORD_STATUS] || STATUS_COLORS['To-Do'];
-                const findingsDisplay = p.findingsCodes?.length ? p.findingsCodes.join(', ') : (p.findingsText || '-');
+                const findingsDisplay = getFindingsDisplay(p);
                 const visitTimeDisplay = p.visitTime ? new Date(p.visitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                 const isCrossedOut = isPatientCrossedOut(p.id);
                 const crossedOutClass = isCrossedOut ? 'cross-out-target' : '';
