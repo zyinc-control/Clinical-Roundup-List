@@ -688,9 +688,75 @@
             padding: 1rem;
             overflow-y: auto;
         }
+
+        .filter-section {
+            margin-bottom: 0.9rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.9rem;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+
+        body.dark-mode .filter-section {
+            background: #334155;
+            border-color: #475569;
+        }
+
+        .filter-section-summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.9rem 1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .filter-section-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .filter-section-summary::after {
+            content: '⌄';
+            font-size: 0.95rem;
+            color: #64748b;
+            transition: transform 0.18s ease;
+        }
+
+        .filter-section[open] .filter-section-summary::after {
+            transform: rotate(180deg);
+        }
+
+        .filter-section-title {
+            font-size: 0.88rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        body.dark-mode .filter-section-title {
+            color: #f8fafc;
+        }
+
+        .filter-section-meta {
+            margin-left: auto;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b;
+            text-align: right;
+        }
+
+        body.dark-mode .filter-section-meta,
+        body.dark-mode .filter-section-summary::after {
+            color: #cbd5e1;
+        }
+
+        .filter-section-body {
+            padding: 0 1rem 1rem;
+        }
         
         .filter-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 0;
         }
         
         .filter-label {
@@ -2871,6 +2937,86 @@
                 input.value = parsed[field] || '';
             });
         }
+
+        function formatCustomFindingDisplay(code, rawValue) {
+            const parsed = parseCustomFindingValue(code, rawValue);
+            if (!parsed || typeof parsed !== 'object') return '';
+
+            const orderedFieldsByCode = {
+                'cbc-85025': ['wcc', 'hb', 'hct', 'plt', 'neutro', 'lympho', 'mono', 'eosino', 'comments'],
+                'bmp-80048': ['na', 'k', 'cl', 'hco3', 'bun', 'creatinine', 'glucose']
+            };
+
+            const labelByField = {
+                wcc: 'WCC',
+                hb: 'Hb',
+                hct: 'Hct',
+                plt: 'Plt',
+                neutro: 'Neutro',
+                lympho: 'Lympho',
+                mono: 'Mono',
+                eosino: 'Eosino',
+                comments: 'Comments',
+                na: 'Na',
+                k: 'K',
+                cl: 'Cl',
+                hco3: 'HCO3',
+                bun: 'BUN',
+                creatinine: 'Creatinine',
+                glucose: 'Glucose'
+            };
+
+            const fields = orderedFieldsByCode[code] || Object.keys(parsed);
+            const segments = fields
+                .map((field) => {
+                    const value = String(parsed[field] || '').trim();
+                    if (!value) return '';
+                    const label = labelByField[field] || field;
+                    return field === 'comments' ? `${label}: ${value}` : `${label} ${value}`;
+                })
+                .filter(Boolean);
+
+            return segments.join(', ');
+        }
+
+        function getFindingsDisplay(patient) {
+            if (!patient || typeof patient !== 'object') return '-';
+
+            const findingsValues = patient.findingsValues && typeof patient.findingsValues === 'object'
+                ? patient.findingsValues
+                : {};
+            const findingsCodes = Array.isArray(patient.findingsCodes)
+                ? patient.findingsCodes
+                : [];
+
+            const valueSegments = findingsCodes
+                .map((code) => {
+                    const rawValue = findingsValues[code];
+                    if (rawValue === null || rawValue === undefined) return '';
+                    if (FINDINGS_CUSTOM_CODES.has(code)) {
+                        return formatCustomFindingDisplay(code, rawValue);
+                    }
+                    if (typeof rawValue === 'string') {
+                        return rawValue.trim();
+                    }
+                    if (typeof rawValue === 'object') {
+                        return Object.values(rawValue)
+                            .map((value) => String(value || '').trim())
+                            .filter(Boolean)
+                            .join(', ');
+                    }
+                    return String(rawValue).trim();
+                })
+                .filter(Boolean);
+
+            const findingsText = String(patient.findingsText || '').trim();
+            if (findingsText) {
+                valueSegments.push(findingsText);
+            }
+
+            const uniqueSegments = [...new Set(valueSegments.filter(Boolean))];
+            return uniqueSegments.length ? uniqueSegments.join(' | ') : '-';
+        }
         
         console.log('Device:', Device.type, `${Device.width}x${Device.height}`);
 
@@ -4065,14 +4211,146 @@
         let currentSort = { column: 'date', direction: 'asc' };
         let activeFilters = {};
         let activeProcedureFilter = null;
+        let currentFilterPreset = null;
+
+        const FILTER_PRESET_LABELS = {
+            morning: 'Morning Rounds',
+            postop: 'Post-Op Check',
+            statonly: 'STAT Cases',
+            pending: 'Pending Tests'
+        };
+
+        function setFilterCheckboxValues(selector, values) {
+            const selected = new Set(Array.isArray(values) ? values : []);
+            document.querySelectorAll(selector).forEach((checkbox) => {
+                checkbox.checked = selected.has(checkbox.value);
+            });
+        }
+
+        function setFilterSummary(id, text) {
+            const element = document.getElementById(id);
+            if (element) element.textContent = text;
+        }
+
+        function syncFilterSectionOpen(sectionId, hasActiveState) {
+            const section = document.getElementById(sectionId);
+            if (!section) return;
+            section.open = hasActiveState || section.dataset.defaultOpen === 'true';
+        }
+
+        function getNormalizedAdvancedFilterState() {
+            const statuses = Array.isArray(activeFilters.statuses) ? activeFilters.statuses : [];
+            const priorities = Array.isArray(activeFilters.priorities) ? activeFilters.priorities : [];
+            const hospitals = Array.isArray(activeFilters.hospitals) ? activeFilters.hospitals : [];
+            const dateFrom = activeFilters.dateFrom || '';
+            const dateTo = activeFilters.dateTo || '';
+            const losMax = Number.isFinite(activeFilters.losMax) ? activeFilters.losMax : 30;
+            const showArchived = activeFilters.showArchived === true;
+            const pendingOnly = activeFilters.pendingOnly === true;
+
+            return {
+                statuses,
+                priorities,
+                hospitals,
+                dateFrom,
+                dateTo,
+                losMax,
+                showArchived,
+                pendingOnly,
+                hasCustomFilters: Boolean(
+                    statuses.length || priorities.length || hospitals.length || dateFrom || dateTo || losMax < 30 || showArchived || pendingOnly || activeProcedureFilter
+                )
+            };
+        }
+
+        function updateAdvancedFilterInputs(state) {
+            setFilterCheckboxValues('.filter-status', state.statuses);
+            setFilterCheckboxValues('.filter-priority', state.priorities);
+            setFilterCheckboxValues('.filter-hospital-cb', state.hospitals);
+
+            const dateFromInput = document.getElementById('filter-date-from');
+            const dateToInput = document.getElementById('filter-date-to');
+            const losInput = document.getElementById('filter-los');
+            const pendingCheckbox = document.getElementById('filter-pending-only');
+            const archivedCheckbox = document.getElementById('filter-show-archived');
+            const losDisplay = document.getElementById('filter-los-display');
+
+            if (dateFromInput) dateFromInput.value = state.dateFrom;
+            if (dateToInput) dateToInput.value = state.dateTo;
+            if (losInput) losInput.value = String(state.losMax);
+            if (pendingCheckbox) pendingCheckbox.checked = state.pendingOnly;
+            if (archivedCheckbox) archivedCheckbox.checked = state.showArchived;
+            if (losDisplay) losDisplay.textContent = String(state.losMax);
+        }
+
+        function updateAdvancedFilterButtons() {
+            document.querySelectorAll('[data-filter-preset]').forEach((button) => {
+                button.classList.toggle('active', button.dataset.filterPreset === currentFilterPreset);
+            });
+
+            document.querySelectorAll('[data-procedure-filter]').forEach((button) => {
+                const buttonFilter = button.dataset.procedureFilter;
+                const isActive = activeProcedureFilter ? buttonFilter === activeProcedureFilter : buttonFilter === 'all';
+                button.classList.toggle('active', isActive);
+            });
+        }
+
+        function getAdvancedFilterDateSummary(dateFrom, dateTo) {
+            if (!dateFrom && !dateTo) return 'Any date';
+            if (dateFrom && dateTo) return `${dateFrom} to ${dateTo}`;
+            if (dateFrom) return `${dateFrom} onward`;
+            return `Through ${dateTo}`;
+        }
+
+        function updateAdvancedFilterSummaries(state) {
+            let presetSummary = 'None';
+            if (currentFilterPreset) {
+                presetSummary = FILTER_PRESET_LABELS[currentFilterPreset];
+            } else if (state.hasCustomFilters) {
+                presetSummary = 'Custom';
+            }
+            const prioritySummary = state.priorities.length
+                ? state.priorities.map((value) => value === 'stat' ? 'STAT' : 'Normal').join(' + ')
+                : 'Any';
+            const flagSummaryParts = [state.losMax < 30 ? `<= ${state.losMax} days` : '30-day max'];
+
+            if (state.pendingOnly) flagSummaryParts.push('Pending only');
+            if (state.showArchived) flagSummaryParts.push('Archived shown');
+
+            setFilterSummary('filter-summary-presets', presetSummary);
+            setFilterSummary('filter-summary-procedures', activeProcedureFilter ? activeProcedureFilter.toUpperCase() : 'All procedures');
+            setFilterSummary('filter-summary-status', state.statuses.length ? `${state.statuses.length} selected` : 'Any');
+            setFilterSummary('filter-summary-priority', prioritySummary);
+            setFilterSummary('filter-summary-hospitals', state.hospitals.length ? `${state.hospitals.length} selected` : 'All');
+            setFilterSummary('filter-summary-date', getAdvancedFilterDateSummary(state.dateFrom, state.dateTo));
+            setFilterSummary('filter-summary-flags', flagSummaryParts.join(' • '));
+        }
+
+        function updateAdvancedFilterSections(state) {
+            syncFilterSectionOpen('filter-section-presets', currentFilterPreset !== null || state.hasCustomFilters === false);
+            syncFilterSectionOpen('filter-section-procedure', Boolean(activeProcedureFilter));
+            syncFilterSectionOpen('filter-section-status', state.statuses.length > 0);
+            syncFilterSectionOpen('filter-section-priority', state.priorities.length > 0);
+            syncFilterSectionOpen('filter-section-hospitals', state.hospitals.length > 0);
+            syncFilterSectionOpen('filter-section-date', Boolean(state.dateFrom || state.dateTo));
+            syncFilterSectionOpen('filter-section-flags', state.losMax < 30 || state.pendingOnly || state.showArchived);
+        }
+
+        function syncAdvancedFilterPanel() {
+            const state = getNormalizedAdvancedFilterState();
+            updateAdvancedFilterInputs(state);
+            updateAdvancedFilterButtons();
+            updateAdvancedFilterSummaries(state);
+            updateAdvancedFilterSections(state);
+        }
 
         // Toggle Advanced Filter Panel
         globalThis.toggleAdvancedFilterPanel = () => {
             const panel = document.getElementById('advanced-filter-panel');
-            panel.classList.toggle('active');
-            if (!panel.classList.contains('active')) {
-                document.body.style.overflow = '';
-            }
+            const shouldOpen = !panel.classList.contains('active');
+            panel.classList.toggle('active', shouldOpen);
+            if (shouldOpen) syncAdvancedFilterPanel();
+            document.body.style.overflow = shouldOpen ? 'hidden' : '';
         };
 
         // Update sorting when table header clicked
@@ -4147,6 +4425,9 @@
             const dateTo = document.getElementById('filter-date-to').value;
             const losMax = document.getElementById('filter-los').value;
             const showArchived = document.getElementById('filter-show-archived').checked;
+            const pendingOnly = document.getElementById('filter-pending-only').checked;
+
+            currentFilterPreset = null;
             
             activeFilters = {
                 statuses: statuses.length > 0 ? statuses : null,
@@ -4155,9 +4436,11 @@
                 dateFrom,
                 dateTo,
                 losMax: Number.parseInt(losMax, 10),
-                showArchived
+                showArchived,
+                pendingOnly
             };
             
+            syncAdvancedFilterPanel();
             renderUI();
             globalThis.toggleAdvancedFilterPanel();
             showToast('✓ Filters applied');
@@ -4169,11 +4452,14 @@
             document.getElementById('filter-date-from').value = '';
             document.getElementById('filter-date-to').value = '';
             document.getElementById('filter-los').value = 30;
+            document.getElementById('filter-pending-only').checked = false;
             document.getElementById('filter-show-archived').checked = false;
             document.getElementById('filter-los-display').textContent = 30;
             
             activeFilters = {};
             activeProcedureFilter = null;
+            currentFilterPreset = null;
+            syncAdvancedFilterPanel();
             renderUI();
             showToast('↻ Filters reset');
         };
@@ -4184,6 +4470,7 @@
             
             activeFilters = {};
             activeProcedureFilter = null;
+            currentFilterPreset = preset;
             
             switch(preset) {
                 case 'morning': {
@@ -4213,15 +4500,18 @@
                     break;
                 case 'pending':
                     // Pending tests
+                    activeFilters.pendingOnly = true;
                     showToast('📋 Pending Tests preset loaded');
                     break;
             }
             
+            syncAdvancedFilterPanel();
             renderUI();
         };
 
         // Filter by Procedure Type
         globalThis.filterByProcedure = (procedure) => {
+            currentFilterPreset = null;
             if (procedure === 'all') {
                 activeProcedureFilter = null;
                 showToast('🏥 All Procedures');
@@ -4229,17 +4519,13 @@
                 activeProcedureFilter = procedure;
                 showToast(`Filtered: ${procedure.toUpperCase()}`);
             }
+            syncAdvancedFilterPanel();
             renderUI();
         };
 
         // Apply all active filters to patient list
         function applyActiveFilters(patientList) {
             let filtered = patientList;
-            
-            // Apply archive filter
-            if (!activeFilters.showArchived) {
-                filtered = filtered.filter(p => !p.archived);
-            }
             
             // Apply status filter
             if (activeFilters.statuses && activeFilters.statuses.length > 0) {
@@ -4281,6 +4567,10 @@
                     const daysAdmitted = Math.floor((today - admitDate) / (1000 * 60 * 60 * 24));
                     return daysAdmitted <= activeFilters.losMax;
                 });
+            }
+
+            if (activeFilters.pendingOnly) {
+                filtered = filtered.filter(p => p.pending && String(p.pending).trim().length > 0);
             }
             
             // Apply procedure category filter
@@ -5784,19 +6074,19 @@
                         </div>
                         
                         <div class="card-field">
-                            <div class="card-field-label">📋 Plan</div>
-                            <div class="card-field-value">${p.plan || '-'}</div>
-                        </div>
-                        
-                        <div class="card-field">
                             <div class="card-field-label">🔍 Findings</div>
-                            <div class="card-field-value">${p.findingsText || p.findingsCodes?.join(', ') || '-'}</div>
+                            <div class="card-field-value">${getFindingsDisplay(p)}</div>
                         </div>
                         
                         ${p.pending ? `<div class="card-field">
                             <div class="card-field-label">⏳ Pending</div>
                             <div class="card-field-value">${p.pending}</div>
                         </div>` : ''}
+
+                        <div class="card-field">
+                            <div class="card-field-label">📋 Plan</div>
+                            <div class="card-field-value">${p.plan || '-'}</div>
+                        </div>
 
                         ${p.followUp ? `<div class="card-field">
                             <div class="card-field-label">📌 Follow-up</div>
@@ -5841,7 +6131,7 @@
             container.innerHTML = filtered.map((patient) => {
                 const status = getSafeConfiguredStatus(getPatientStatus(patient));
                 const statusObj = STATUS_COLORS[status] || STATUS_COLORS[DEFAULT_RECORD_STATUS] || STATUS_COLORS['To-Do'];
-                const findingsDisplay = patient.findingsCodes?.length ? patient.findingsCodes.join(', ') : (patient.findingsText || '');
+                const findingsDisplay = getFindingsDisplay(patient);
                 const isStat = patient.stat === true || patient.stat === 'true';
                 const isSelected = selectedPatientIds.has(patient.id);
                 const isCrossedOut = isPatientCrossedOut(patient.id);
@@ -5866,9 +6156,9 @@
                         </div>
 
                         <div class="mobile-card-body">
-                            <div class="mobile-card-section ${crossedOutClass}"><strong>Plan</strong>${planSummary}</div>
                             <div class="mobile-card-section ${crossedOutClass}"><strong>Findings</strong>${findingsSummary}</div>
                             ${patient.pending ? `<div class="mobile-card-section ${crossedOutClass}"><strong>Pending</strong>${summarizeMobileText(patient.pending, 90)}</div>` : ''}
+                            <div class="mobile-card-section ${crossedOutClass}"><strong>Plan</strong>${planSummary}</div>
                         </div>
 
                         <div class="mobile-card-status-row">
@@ -7991,8 +8281,8 @@
 
         function getFilteredData() {
             let f = [];
-            if (currentTab === 'active') f = patients.filter(p => !p.archived);
-            else if (currentTab === 'procedures') f = patients.filter(p => !p.archived && isSurgicalCase(p));
+            if (currentTab === 'active') f = patients.filter(p => activeFilters.showArchived || !p.archived);
+            else if (currentTab === 'procedures') f = patients.filter(p => (activeFilters.showArchived || !p.archived) && isSurgicalCase(p));
             else if (currentTab === 'archive') f = patients.filter(p => p.archived);
             
             // Apply user filters
@@ -8989,91 +9279,139 @@
             </div>
             <div class="filter-content">
                 <!-- Filter Presets -->
-                <div class="filter-group">
-                    <div class="filter-label">⭐ Quick Presets</div>
-                    <div class="filter-presets">
-                        <button onclick="globalThis.loadFilterPreset('morning')" class="filter-preset-btn">🌅 Morning Rounds</button>
-                        <button onclick="globalThis.loadFilterPreset('postop')" class="filter-preset-btn">⭐ Post-Op Check</button>
-                        <button onclick="globalThis.loadFilterPreset('statonly')" class="filter-preset-btn">🔴 STAT Cases</button>
-                        <button onclick="globalThis.loadFilterPreset('pending')" class="filter-preset-btn">📋 Pending Tests</button>
+                <details id="filter-section-presets" class="filter-section" data-default-open="true" open>
+                    <summary class="filter-section-summary">
+                        <span class="filter-section-title">⭐ Quick Presets</span>
+                        <span id="filter-summary-presets" class="filter-section-meta">None</span>
+                    </summary>
+                    <div class="filter-section-body">
+                        <div class="filter-group">
+                            <div class="filter-presets">
+                                <button type="button" data-filter-preset="morning" onclick="globalThis.loadFilterPreset('morning')" class="filter-preset-btn">🌅 Morning Rounds</button>
+                                <button type="button" data-filter-preset="postop" onclick="globalThis.loadFilterPreset('postop')" class="filter-preset-btn">⭐ Post-Op Check</button>
+                                <button type="button" data-filter-preset="statonly" onclick="globalThis.loadFilterPreset('statonly')" class="filter-preset-btn">🔴 STAT Cases</button>
+                                <button type="button" data-filter-preset="pending" onclick="globalThis.loadFilterPreset('pending')" class="filter-preset-btn">📋 Pending Tests</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </details>
 
                 <!-- Procedure Categories -->
-                <div class="filter-group">
-                    <div class="filter-label">🏥 Procedure Categories</div>
-                    <div class="procedure-category-buttons">
-                        <button onclick="globalThis.filterByProcedure('cysto')" class="procedure-btn">Cysto</button>
-                        <button onclick="globalThis.filterByProcedure('stent')" class="procedure-btn">Stent</button>
-                        <button onclick="globalThis.filterByProcedure('turbt')" class="procedure-btn">TURBT</button>
-                        <button onclick="globalThis.filterByProcedure('laser')" class="procedure-btn">Laser</button>
-                        <button onclick="globalThis.filterByProcedure('robotic')" class="procedure-btn">Robotic</button>
-                        <button onclick="globalThis.filterByProcedure('biopsy')" class="procedure-btn">Biopsy</button>
-                        <button onclick="globalThis.filterByProcedure('all')" class="procedure-btn">All Procedures</button>
+                <details id="filter-section-procedure" class="filter-section">
+                    <summary class="filter-section-summary">
+                        <span class="filter-section-title">🏥 Procedure Categories</span>
+                        <span id="filter-summary-procedures" class="filter-section-meta">All procedures</span>
+                    </summary>
+                    <div class="filter-section-body">
+                        <div class="filter-group">
+                            <div class="procedure-category-buttons">
+                                <button type="button" data-procedure-filter="cysto" onclick="globalThis.filterByProcedure('cysto')" class="procedure-btn">Cysto</button>
+                                <button type="button" data-procedure-filter="stent" onclick="globalThis.filterByProcedure('stent')" class="procedure-btn">Stent</button>
+                                <button type="button" data-procedure-filter="turbt" onclick="globalThis.filterByProcedure('turbt')" class="procedure-btn">TURBT</button>
+                                <button type="button" data-procedure-filter="laser" onclick="globalThis.filterByProcedure('laser')" class="procedure-btn">Laser</button>
+                                <button type="button" data-procedure-filter="robotic" onclick="globalThis.filterByProcedure('robotic')" class="procedure-btn">Robotic</button>
+                                <button type="button" data-procedure-filter="biopsy" onclick="globalThis.filterByProcedure('biopsy')" class="procedure-btn">Biopsy</button>
+                                <button type="button" data-procedure-filter="all" onclick="globalThis.filterByProcedure('all')" class="procedure-btn">All Procedures</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </details>
 
                 <!-- Status Filter -->
-                <div class="filter-group">
-                    <div class="filter-label">📊 Status</div>
-                    <div class="filter-checkbox-group">
-                        <label><input type="checkbox" class="filter-status" value="NEW CONSULT"> NEW CONSULT</label>
-                        <label><input type="checkbox" class="filter-status" value="SURGICAL PATIENT (SAME DAY SURGERY)"> SURGICAL PATIENT (SAME DAY SURGERY)</label>
-                        <label><input type="checkbox" class="filter-status" value="NEW SURGICAL PATIENT (AM ADMIT)"> NEW SURGICAL PATIENT (AM ADMIT)</label>
-                        <label><input type="checkbox" class="filter-status" value="FOLLOW UP (CONSULT)"> FOLLOW UP (CONSULT)</label>
-                        <label><input type="checkbox" class="filter-status" value="FOLLOW UP (POST OP)"> FOLLOW UP (POST OP)</label>
-                        <label><input type="checkbox" class="filter-status" value="TO BE DISCHARGED/SIGNED OFF"> TO BE DISCHARGED/SIGNED OFF</label>
+                <details id="filter-section-status" class="filter-section" data-default-open="true" open>
+                    <summary class="filter-section-summary">
+                        <span class="filter-section-title">📊 Status</span>
+                        <span id="filter-summary-status" class="filter-section-meta">Any</span>
+                    </summary>
+                    <div class="filter-section-body">
+                        <div class="filter-group">
+                            <div class="filter-checkbox-group">
+                                <label><input type="checkbox" class="filter-status" value="NEW CONSULT"> NEW CONSULT</label>
+                                <label><input type="checkbox" class="filter-status" value="SURGICAL PATIENT (SAME DAY SURGERY)"> SURGICAL PATIENT (SAME DAY SURGERY)</label>
+                                <label><input type="checkbox" class="filter-status" value="NEW SURGICAL PATIENT (AM ADMIT)"> NEW SURGICAL PATIENT (AM ADMIT)</label>
+                                <label><input type="checkbox" class="filter-status" value="FOLLOW UP (CONSULT)"> FOLLOW UP (CONSULT)</label>
+                                <label><input type="checkbox" class="filter-status" value="FOLLOW UP (POST OP)"> FOLLOW UP (POST OP)</label>
+                                <label><input type="checkbox" class="filter-status" value="TO BE DISCHARGED/SIGNED OFF"> TO BE DISCHARGED/SIGNED OFF</label>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </details>
 
                 <!-- Priority Filter -->
-                <div class="filter-group">
-                    <div class="filter-label">🎯 Priority</div>
-                    <div class="filter-checkbox-group">
-                        <label><input type="checkbox" class="filter-priority" value="stat"> STAT Priority 🔴</label>
-                        <label><input type="checkbox" class="filter-priority" value="normal"> Normal 🟢</label>
+                <details id="filter-section-priority" class="filter-section">
+                    <summary class="filter-section-summary">
+                        <span class="filter-section-title">🎯 Priority</span>
+                        <span id="filter-summary-priority" class="filter-section-meta">Any</span>
+                    </summary>
+                    <div class="filter-section-body">
+                        <div class="filter-group">
+                            <div class="filter-checkbox-group">
+                                <label><input type="checkbox" class="filter-priority" value="stat"> STAT Priority 🔴</label>
+                                <label><input type="checkbox" class="filter-priority" value="normal"> Normal 🟢</label>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </details>
 
                 <!-- Hospital Filter -->
-                <div class="filter-group">
-                    <div class="filter-label">🏥 Hospitals</div>
-                    <div class="filter-checkbox-group">
-                        <label><input type="checkbox" class="filter-hospital-cb" value="WGMC"> WGMC</label>
-                        <label><input type="checkbox" class="filter-hospital-cb" value="AWC"> AWC</label>
-                        <label><input type="checkbox" class="filter-hospital-cb" value="BTMC"> BTMC</label>
-                        <label><input type="checkbox" class="filter-hospital-cb" value="Westgate"> Westgate</label>
-                        <label><input type="checkbox" class="filter-hospital-cb" value="CRMC"> CRMC</label>
+                <details id="filter-section-hospitals" class="filter-section">
+                    <summary class="filter-section-summary">
+                        <span class="filter-section-title">🏥 Hospitals</span>
+                        <span id="filter-summary-hospitals" class="filter-section-meta">All</span>
+                    </summary>
+                    <div class="filter-section-body">
+                        <div class="filter-group">
+                            <div class="filter-checkbox-group">
+                                <label><input type="checkbox" class="filter-hospital-cb" value="WGMC"> WGMC</label>
+                                <label><input type="checkbox" class="filter-hospital-cb" value="AWC"> AWC</label>
+                                <label><input type="checkbox" class="filter-hospital-cb" value="BTMC"> BTMC</label>
+                                <label><input type="checkbox" class="filter-hospital-cb" value="Westgate"> Westgate</label>
+                                <label><input type="checkbox" class="filter-hospital-cb" value="CRMC"> CRMC</label>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </details>
 
                 <!-- Date Range Filter -->
-                <div class="filter-group">
-                    <div class="filter-label">📅 Date Range</div>
-                    <div>
-                        <label for="filter-date-from" class="text-xs my-2 block">From:</label>
-                        <input type="date" id="filter-date-from" class="w-full p-2 border border-slate-300 rounded text-sm">
+                <details id="filter-section-date" class="filter-section">
+                    <summary class="filter-section-summary">
+                        <span class="filter-section-title">📅 Date Range</span>
+                        <span id="filter-summary-date" class="filter-section-meta">Any date</span>
+                    </summary>
+                    <div class="filter-section-body">
+                        <div class="filter-group">
+                            <div>
+                                <label for="filter-date-from" class="text-xs my-2 block">From:</label>
+                                <input type="date" id="filter-date-from" class="w-full p-2 border border-slate-300 rounded text-sm">
+                            </div>
+                            <div class="mt-2">
+                                <label for="filter-date-to" class="text-xs my-2 block">To:</label>
+                                <input type="date" id="filter-date-to" class="w-full p-2 border border-slate-300 rounded text-sm">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mt-2">
-                        <label for="filter-date-to" class="text-xs my-2 block">To:</label>
-                        <input type="date" id="filter-date-to" class="w-full p-2 border border-slate-300 rounded text-sm">
-                    </div>
-                </div>
+                </details>
 
-                <!-- Length of Stay Filter -->
-                <div class="filter-group">
-                    <label for="filter-los" class="filter-label">⏳ Length of Stay (days)</label>
-                    <input type="range" id="filter-los" min="0" max="30" value="30" class="filter-slider">
-                    <div class="text-xs text-slate-500 mt-1">≤ <span id="filter-los-display">30</span> days admitted</div>
-                </div>
-
-                <!-- Archived Filter -->
-                <div class="filter-group">
-                    <div class="filter-label">📦 Status</div>
-                    <div class="filter-checkbox-group">
-                        <label><input type="checkbox" id="filter-show-archived" value="archived"> Show Archived Records</label>
+                <details id="filter-section-flags" class="filter-section">
+                    <summary class="filter-section-summary">
+                        <span class="filter-section-title">⏳ Stay And Flags</span>
+                        <span id="filter-summary-flags" class="filter-section-meta">30-day max</span>
+                    </summary>
+                    <div class="filter-section-body">
+                        <div class="filter-group">
+                            <label for="filter-los" class="filter-label">⏳ Length of Stay (days)</label>
+                            <input type="range" id="filter-los" min="0" max="30" value="30" class="filter-slider">
+                            <div class="text-xs text-slate-500 mt-1">≤ <span id="filter-los-display">30</span> days admitted</div>
+                        </div>
+                        <div class="filter-group mt-4">
+                            <div class="filter-label">📦 Record Flags</div>
+                            <div class="filter-checkbox-group">
+                                <label><input type="checkbox" id="filter-pending-only" value="pending"> Pending Tests Only</label>
+                                <label><input type="checkbox" id="filter-show-archived" value="archived"> Show Archived Records</label>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </details>
             </div>
 
             <div class="filter-actions">
