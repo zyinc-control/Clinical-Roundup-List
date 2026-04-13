@@ -309,11 +309,11 @@ function updateConnectionStatus(connected, username = '') {
     const statusEl = document.getElementById('connection-status');
     if (statusEl) {
         if (connected) {
-            statusEl.innerHTML = `<span class="text-green-600 font-bold">● Connected (M365)</span> <span class="text-slate-600">${username}</span>`;
+            statusEl.innerHTML = '<span class="text-green-700 font-semibold">M365</span>';
             console.log('✓ Updated connection-status element');
         } else {
-            statusEl.innerHTML = '<span class="text-red-600 font-bold">● Offline</span>';
-            console.log('✓ Updated connection-status (offline)');
+            statusEl.innerHTML = '';
+            console.log('✓ Cleared connection-status (local mode)');
         }
     } else {
         console.warn('⚠️ Element not found: #connection-status');
@@ -331,9 +331,8 @@ function updateConnectionStatus(connected, username = '') {
     if (!statusDetail) console.warn('⚠️ Element not found: #status-detail');
     
     if (connected) {
-        // Change to green "Connected (M365)" mode
         if (statusBar) {
-            statusBar.className = 'px-4 py-3 flex-shrink-0 flex flex-col items-center justify-center bg-green-50 border-b border-green-200 gap-1';
+            statusBar.className = 'system-ribbon flex-shrink-0 bg-green-50 border-b border-green-200';
             console.log('✓ Updated statusBar to Connected (green)');
         }
         if (statusIndicator) {
@@ -341,8 +340,8 @@ function updateConnectionStatus(connected, username = '') {
         }
         if (statusText) {
             statusText.className = 'text-sm font-bold text-green-900 uppercase tracking-wide';
-            statusText.innerText = 'Connected (M365)';
-            console.log('✓ Updated statusText to "Connected (M365)"');
+            statusText.innerText = 'Connected';
+            console.log('✓ Updated statusText to "Connected"');
         }
         if (statusDetail) {
             statusDetail.className = 'text-xs text-green-700 font-semibold';
@@ -350,16 +349,15 @@ function updateConnectionStatus(connected, username = '') {
             console.log('✓ Updated statusDetail to:', username);
         }
     } else {
-        // Revert to amber "Local Mode"
         if (statusBar) {
-            statusBar.className = 'px-4 py-3 flex-shrink-0 flex flex-col items-center justify-center bg-amber-50 border-b border-amber-200 gap-1';
+            statusBar.className = 'system-ribbon flex-shrink-0 bg-amber-50 border-b border-amber-200';
         }
         if (statusIndicator) {
             statusIndicator.className = 'inline-flex h-3 w-3 rounded-full bg-amber-600';
         }
         if (statusText) {
             statusText.className = 'text-sm font-bold text-amber-900 uppercase tracking-wide';
-            statusText.innerText = 'Local Mode';
+            statusText.innerText = 'Local';
         }
         if (statusDetail) {
             statusDetail.className = 'text-xs text-amber-700 font-semibold';
@@ -602,7 +600,7 @@ async function api_fetchPatients(dateFilter = null) {
             supervisingMd: item.fields.SupervisingMD || '',
             pending: item.fields.Pending || '',
             followUp: item.fields.FollowUp || '',
-            procedureStatus: item.fields.ProcedureStatus || 'To-Do',
+            procedureStatus: item.fields.ProcedureStatus || 'NEW CONSULT',
             cptPrimary: item.fields.CPTPrimary || '',
             icdPrimary: item.fields.ICDPrimary || '',
             chargeCodesSecondary: item.fields.ChargeCodesSecondary ? JSON.parse(item.fields.ChargeCodesSecondary) : [],
@@ -742,7 +740,7 @@ async function api_savePatient(patientData) {
         Pending: patientData.pending || '',
         FollowUp: patientData.followUp || '',
         Priority: normalizeBool(patientData.stat) || normalizeBool(patientData.priority),
-        ProcedureStatus: patientData.procedureStatus || 'To-Do',
+        ProcedureStatus: patientData.procedureStatus || 'NEW CONSULT',
         CPTPrimary: patientData.cptPrimary || '',
         ICDPrimary: patientData.icdPrimary || '',
         ChargeCodesSecondary: patientData.chargeCodesSecondary ? JSON.stringify(patientData.chargeCodesSecondary) : '[]',
@@ -1007,7 +1005,7 @@ async function api_fetchOnCallSchedule() {
                 .map(v => v.trim())
                 .filter(Boolean);
             return {
-                id: item.id,
+                id: normalizeSharePointListItemId(item.id) || String(item.id || ''),
                 date: normalizeDateFromSharePoint(item.fields.Date || ''),
                 provider: providers[0] || providerRaw || '',
                 provider2: providers[1] || '',
@@ -1024,6 +1022,43 @@ async function api_fetchOnCallSchedule() {
     }
 }
 
+function isSharePointListItemId(value) {
+    return normalizeSharePointListItemId(value) !== '';
+}
+
+function normalizeSharePointListItemId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    // Ignore likely client-generated timestamps (e.g. Date.now())
+    if (/^\d{10,}$/.test(raw)) return '';
+
+    if (/^\d+$/.test(raw)) return raw;
+
+    // Graph occasionally surfaces IDs like "3-<suffix>"; list item endpoints need "3".
+    const prefixed = raw.match(/^(\d+)-/);
+    if (prefixed && prefixed[1]) return prefixed[1];
+
+    return '';
+}
+
+async function resolveOnCallShiftItemIdByDate(siteId, listId, shiftDate) {
+    if (!shiftDate) return '';
+
+    try {
+        const response = await graphRequest(`/sites/${siteId}/lists/${listId}/items?expand=fields&$top=500`);
+        const match = (response.value || []).find((item) => {
+            const normalizedDate = normalizeDateFromSharePoint(item.fields?.Date || '');
+            return normalizedDate === shiftDate;
+        });
+
+        return normalizeSharePointListItemId(match?.id);
+    } catch (err) {
+        console.warn('Failed resolving on-call item id by date:', err?.message || err);
+        return '';
+    }
+}
+
 async function api_saveOnCallShift(shiftData) {
     const listId = M365_CONFIG.sharepoint.lists.onCallSchedule;
     const siteId = M365_CONFIG.sharepoint.siteId;
@@ -1036,22 +1071,37 @@ async function api_saveOnCallShift(shiftData) {
         Provider: providerValues.join(' | '),
         Hospitals: shiftData.hospitals || ''
     };
-    
-    if (shiftData.id) {
-        // Update
-        const endpoint = `/sites/${siteId}/lists/${listId}/items/${shiftData.id}/fields`;
-        await graphRequest(endpoint, 'PATCH', fields);
-    } else {
-        // Create
-        const endpoint = `/sites/${siteId}/lists/${listId}/items`;
-        await graphRequest(endpoint, 'POST', { fields: fields });
+
+    let normalizedItemId = normalizeSharePointListItemId(shiftData.id);
+    if (!normalizedItemId) {
+        normalizedItemId = await resolveOnCallShiftItemIdByDate(siteId, listId, shiftData.date);
     }
+
+    if (normalizedItemId) {
+        const endpoint = `/sites/${siteId}/lists/${listId}/items/${normalizedItemId}/fields`;
+        await graphRequest(endpoint, 'PATCH', fields);
+        return { ...shiftData, id: normalizedItemId };
+    }
+
+    const endpoint = `/sites/${siteId}/lists/${listId}/items`;
+    const createdItem = await graphRequest(endpoint, 'POST', { fields: fields });
+    const createdId = normalizeSharePointListItemId(createdItem?.id);
+    return {
+        ...shiftData,
+        id: createdId || String(createdItem?.id || shiftData.id || '')
+    };
 }
 
 async function api_deleteOnCallShift(shiftId) {
+    const normalizedItemId = normalizeSharePointListItemId(shiftId);
+    if (!normalizedItemId) {
+        console.warn('Skipping M365 delete for non-SharePoint on-call shift id:', shiftId);
+        return;
+    }
+
     const listId = M365_CONFIG.sharepoint.lists.onCallSchedule;
     const siteId = M365_CONFIG.sharepoint.siteId;
-    const endpoint = `/sites/${siteId}/lists/${listId}/items/${shiftId}`;
+    const endpoint = `/sites/${siteId}/lists/${listId}/items/${normalizedItemId}`;
     
     await graphRequest(endpoint, 'DELETE');
 }
@@ -1297,7 +1347,7 @@ async function api_importFromCSV(csvText) {
             supervisingMd: row[columnMap.supervisingMd] || '',
             pending: row[columnMap.pending] || '',
             followUp: row[columnMap.followUp] || '',
-            procedureStatus: 'To-Do',
+            procedureStatus: 'NEW CONSULT',
             archived: false
         };
         

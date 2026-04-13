@@ -144,9 +144,46 @@ function updateConnectionStatus(connected, username = '') {
     const statusEl = document.getElementById('connection-status');
     if (statusEl) {
         if (connected) {
-            statusEl.innerHTML = `<span class="text-green-600 font-bold">● Connected (M365)</span> <span class="text-slate-600">${username}</span>`;
+            statusEl.innerHTML = '<span class="text-green-700 font-semibold">M365</span>';
         } else {
-            statusEl.innerHTML = '<span class="text-red-600 font-bold">● Offline</span>';
+            statusEl.innerHTML = '';
+        }
+    }
+
+    const statusBar = document.getElementById('connection-status-bar');
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    const statusDetail = document.getElementById('status-detail');
+
+    if (connected) {
+        if (statusBar) {
+            statusBar.className = 'system-ribbon flex-shrink-0 bg-green-50 border-b border-green-200';
+        }
+        if (statusIndicator) {
+            statusIndicator.className = 'inline-flex h-3 w-3 rounded-full bg-green-600';
+        }
+        if (statusText) {
+            statusText.className = 'text-sm font-bold text-green-900 uppercase tracking-wide';
+            statusText.innerText = 'Connected';
+        }
+        if (statusDetail) {
+            statusDetail.className = 'text-xs text-green-700 font-semibold';
+            statusDetail.innerText = username || 'Authenticated';
+        }
+    } else {
+        if (statusBar) {
+            statusBar.className = 'system-ribbon flex-shrink-0 bg-amber-50 border-b border-amber-200';
+        }
+        if (statusIndicator) {
+            statusIndicator.className = 'inline-flex h-3 w-3 rounded-full bg-amber-600';
+        }
+        if (statusText) {
+            statusText.className = 'text-sm font-bold text-amber-900 uppercase tracking-wide';
+            statusText.innerText = 'Local';
+        }
+        if (statusDetail) {
+            statusDetail.className = 'text-xs text-amber-700 font-semibold';
+            statusDetail.innerText = 'No persistence';
         }
     }
 }
@@ -219,7 +256,7 @@ async function fetchPatients(dateFilter = null) {
             pending: item.fields.Pending || '',
             followUp: item.fields.FollowUp || '',
             priority: item.fields.Priority === 'Yes',
-            procedureStatus: item.fields.ProcedureStatus || 'To-Do',
+            procedureStatus: item.fields.ProcedureStatus || 'NEW CONSULT',
             cptPrimary: item.fields.CPTPrimary || '',
             icdPrimary: item.fields.ICDPrimary || '',
             chargeCodesSecondary: item.fields.ChargeCodesSecondary ? JSON.parse(item.fields.ChargeCodesSecondary) : [],
@@ -260,7 +297,7 @@ async function savePatient(patientData) {
         Pending: patientData.pending || '',
         FollowUp: patientData.followUp || '',
         Priority: patientData.priority ? 'Yes' : 'No',
-        ProcedureStatus: patientData.procedureStatus || 'To-Do',
+        ProcedureStatus: patientData.procedureStatus || 'NEW CONSULT',
         CPTPrimary: patientData.cptPrimary || '',
         ICDPrimary: patientData.icdPrimary || '',
         ChargeCodesSecondary: patientData.chargeCodesSecondary ? JSON.stringify(patientData.chargeCodesSecondary) : '[]',
@@ -343,7 +380,7 @@ async function fetchOnCallSchedule() {
         const response = await graphRequest(endpoint);
         
         const schedule = response.value.map(item => ({
-            id: item.id,
+              id: normalizeSharePointListItemId(item.id) || String(item.id || ''),
             date: item.fields.Date || '',
             provider: item.fields.Provider || '',
             hospitals: item.fields.Hospitals || ''
@@ -357,6 +394,39 @@ async function fetchOnCallSchedule() {
     }
 }
 
+function isSharePointListItemId(value) {
+    return normalizeSharePointListItemId(value) !== '';
+}
+
+function normalizeSharePointListItemId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    if (/^\d{10,}$/.test(raw)) return '';
+    if (/^\d+$/.test(raw)) return raw;
+
+    const prefixed = raw.match(/^(\d+)-/);
+    if (prefixed && prefixed[1]) return prefixed[1];
+
+    return '';
+}
+
+async function resolveOnCallShiftItemIdByDate(siteId, listId, shiftDate) {
+    if (!shiftDate) return '';
+
+    try {
+        const response = await graphRequest(`/sites/${siteId}/lists/${listId}/items?expand=fields&$top=500`);
+        const match = (response.value || []).find((item) => {
+            const normalizedDate = normalizeDate(item.fields?.Date || '');
+            return normalizedDate === shiftDate;
+        });
+        return normalizeSharePointListItemId(match?.id);
+    } catch (err) {
+        console.warn('Failed resolving on-call item id by date:', err?.message || err);
+        return '';
+    }
+}
+
 async function saveOnCallShift(shiftData) {
     const listId = M365_CONFIG.sharepoint.lists.onCallSchedule;
     const siteId = M365_CONFIG.sharepoint.siteId;
@@ -366,22 +436,37 @@ async function saveOnCallShift(shiftData) {
         Provider: shiftData.provider || '',
         Hospitals: shiftData.hospitals || ''
     };
-    
-    if (shiftData.id) {
-        // Update
-        const endpoint = `/sites/${siteId}/lists/${listId}/items/${shiftData.id}/fields`;
-        await graphRequest(endpoint, 'PATCH', fields);
-    } else {
-        // Create
-        const endpoint = `/sites/${siteId}/lists/${listId}/items`;
-        await graphRequest(endpoint, 'POST', { fields: fields });
+
+    let normalizedItemId = normalizeSharePointListItemId(shiftData.id);
+    if (!normalizedItemId) {
+        normalizedItemId = await resolveOnCallShiftItemIdByDate(siteId, listId, shiftData.date);
     }
+
+    if (normalizedItemId) {
+        const endpoint = `/sites/${siteId}/lists/${listId}/items/${normalizedItemId}/fields`;
+        await graphRequest(endpoint, 'PATCH', fields);
+        return { ...shiftData, id: normalizedItemId };
+    }
+
+    const endpoint = `/sites/${siteId}/lists/${listId}/items`;
+    const createdItem = await graphRequest(endpoint, 'POST', { fields: fields });
+    const createdId = normalizeSharePointListItemId(createdItem?.id);
+    return {
+        ...shiftData,
+        id: createdId || String(createdItem?.id || shiftData.id || '')
+    };
 }
 
 async function deleteOnCallShift(shiftId) {
+    const normalizedItemId = normalizeSharePointListItemId(shiftId);
+    if (!normalizedItemId) {
+        console.warn('Skipping M365 delete for non-SharePoint on-call shift id:', shiftId);
+        return;
+    }
+
     const listId = M365_CONFIG.sharepoint.lists.onCallSchedule;
     const siteId = M365_CONFIG.sharepoint.siteId;
-    const endpoint = `/sites/${siteId}/lists/${listId}/items/${shiftId}`;
+    const endpoint = `/sites/${siteId}/lists/${listId}/items/${normalizedItemId}`;
     
     await graphRequest(endpoint, 'DELETE');
 }
@@ -543,7 +628,7 @@ async function importFromCSV(csvText) {
             pending: row[columnMap.pending] || '',
             followUp: row[columnMap.followUp] || '',
             priority: false,
-            procedureStatus: 'To-Do',
+            procedureStatus: 'NEW CONSULT',
             archived: false
         };
         
@@ -661,6 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.m365FetchOnCall = fetchOnCallSchedule;
     window.m365SaveOnCall = saveOnCallShift;
     window.m365DeleteOnCall = deleteOnCallShift;
+    window.m365SaveSetting = saveSetting;
     window.m365ExportToOneDrive = exportToOneDrive;
     window.m365ImportFromCSV = importFromCSV;
 });

@@ -288,10 +288,10 @@
             margin-bottom: 10px;
         }
 
-        /* PATIENT STATUS COLORS */
+        /* VISIT STATUS COLORS */
         .status-legend {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 15px;
             margin: 30px 0;
         }
@@ -304,20 +304,28 @@
             text-align: center;
         }
 
-        .status-todo {
+        .status-newconsult {
             background: #9ca3af;
         }
 
-        .status-inprogress {
+        .status-sameday {
             background: #3b82f6;
         }
 
-        .status-completed {
-            background: #22c55e;
+        .status-amadmit {
+            background: #0891b2;
         }
 
-        .status-postop {
+        .status-followup-consult {
+            background: #059669;
+        }
+
+        .status-followup-postop {
             background: #f59e0b;
+        }
+
+        .status-discharge {
+            background: #e11d48;
         }
 
         .status-stat {
@@ -615,14 +623,14 @@
             <div class="card" style="padding: 30px; background: #faf5ff; border-left: 5px solid #a855f7;">
                 <div style="display: flex; flex-direction: column; gap: 20px;">
                     <div style="display: flex; align-items: center; gap: 20px;">
-                        <div style="background: #a855f7; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">1</div>
+                        <div style="background: #7e22ce; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">1</div>
                         <div>
                             <h4 style="margin: 0; color: #7e22ce;">Export & Upload</h4>
                             <p style="margin: 5px 0 0 0; font-size: 0.95em; color: #6b7280;">Export Excel from your EHR and upload it to the platform.</p>
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 20px;">
-                        <div style="background: #eab308; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">2</div>
+                        <div style="background: #a16207; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">2</div>
                         <div>
                             <h4 style="margin: 0; color: #ca8a04;">System Analysis & Duplicate Detection</h4>
                             <p style="margin: 5px 0 0 0; font-size: 0.95em; color: #6b7280;">The system scans for exact matches (MRN + Date) and shows a preview modal.</p>
@@ -682,8 +690,8 @@
                 <div class="step">
                     <div class="step-number">2</div>
                     <div class="step-content">
-                        <h4>Click Sign In</h4>
-                        <p>Look for the <strong>Sign In</strong> button in the top-right corner</p>
+                        <h4>Click Login</h4>
+                        <p>Use the labeled <strong>Login</strong> button in the top action bar. After authentication, that same button becomes <strong>Logout</strong>.</p>
                     </div>
                 </div>
 
@@ -732,24 +740,32 @@
                 </div>
             </div>
 
-            <h3>Patient Status Colors</h3>
-            <p>Understand patient status at a glance with color coding:</p>
+            <h3>Visit Workflow Statuses</h3>
+            <p>The current workflow uses six visit-status options, plus a separate STAT priority flag for urgent patients:</p>
             <div class="status-legend">
-                <div class="status-item status-todo">
-                    <div style="font-size: 1.5em; margin-bottom: 5px;">⬜</div>
-                    To-Do
+                <div class="status-item status-newconsult">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">NC</div>
+                    New Consult
                 </div>
-                <div class="status-item status-inprogress">
-                    <div style="font-size: 1.5em; margin-bottom: 5px;">🔵</div>
-                    In-Progress
+                <div class="status-item status-sameday">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">SDS</div>
+                    Surgical Patient (Same Day Surgery)
                 </div>
-                <div class="status-item status-completed">
-                    <div style="font-size: 1.5em; margin-bottom: 5px;">✅</div>
-                    Completed
+                <div class="status-item status-amadmit">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">AM</div>
+                    New Surgical Patient (AM Admit)
                 </div>
-                <div class="status-item status-postop">
-                    <div style="font-size: 1.5em; margin-bottom: 5px;">⭐</div>
-                    Post-Op
+                <div class="status-item status-followup-consult">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">FU</div>
+                    Follow Up (Consult)
+                </div>
+                <div class="status-item status-followup-postop">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">PO</div>
+                    Follow Up (Post Op)
+                </div>
+                <div class="status-item status-discharge">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">DC</div>
+                    To Be Discharged / Signed Off
                 </div>
                 <div class="status-item status-stat">
                     <div style="font-size: 1.5em; margin-bottom: 5px;">🔴</div>
@@ -777,8 +793,8 @@
                     <p>Jump between 11 different views (Census, Surgical, etc.)</p>
                 </div>
                 <div class="card primary">
-                    <h4>🔍 Advanced Search</h4>
-                    <p>Find patients instantly by name, MRN, room, or findings</p>
+                    <h4>🔍 Search + Adv. Filters</h4>
+                    <p>Use Search for instant text matching and <strong>Adv. Filters</strong> for saved presets, date ranges, status filters, and hospital filters.</p>
                 </div>
                 <div class="card primary">
                     <h4>👥 Patient Views</h4>
@@ -786,9 +802,50 @@
                 </div>
                 <div class="card primary">
                     <h4>✅ Batch Operations</h4>
-                    <p>Select multiple patients for bulk status changes or archival</p>
+                    <p>Select multiple rows to open <strong>Selection Mode</strong> for print, status changes, archive, delete, and clear-selection actions.</p>
                 </div>
             </div>
+
+            <h3>Top Action Buttons</h3>
+            <p>The header now uses same-size labeled buttons so the primary actions are always visible and consistent:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Button</th>
+                        <th>What It Does</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Login / Logout</strong></td>
+                        <td>Starts or ends your authenticated session.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Import Files</strong></td>
+                        <td>Opens the file picker for CSV, XLSX, or XLS bulk import.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Add Record</strong></td>
+                        <td>Opens the patient-entry modal for a new visit.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Adv. Filters</strong></td>
+                        <td>Opens the advanced filter panel with quick presets and detailed filter checkboxes.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Search</strong></td>
+                        <td>Toggles the search panel with quick filter buttons.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Settings</strong></td>
+                        <td>Opens application settings and configuration options.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Help</strong></td>
+                        <td>Opens the keyboard shortcuts modal with scroll hints and a dedicated close button.</td>
+                    </tr>
+                </tbody>
+            </table>
 
             <h3>Quick Filter Buttons</h3>
             <p>Use these filters to narrow down your view instantly:</p>
@@ -799,7 +856,7 @@
                     <span class="flow-step" style="background: #f59e0b;">⚡ In Progress</span>
                     <span class="flow-step" style="background: #8b5cf6;">📋 Pending Tests</span>
                 </div>
-                <p><em>Combine filters for powerful searches. Click "Clear" to reset.</em></p>
+                <p><em>These quick buttons live inside the Search panel. Use them with Adv. Filters when you need more precise narrowing.</em></p>
             </div>
         </section>
 
@@ -812,8 +869,8 @@
                 <div class="step">
                     <div class="step-number">1</div>
                     <div class="step-content">
-                        <h4>Click + Add Patient</h4>
-                        <p>Find the button in the top area of the app (usually top-center)</p>
+                        <h4>Click Add Record</h4>
+                        <p>Use the blue <strong>Add Record</strong> button in the top action bar.</p>
                     </div>
                 </div>
 
@@ -891,12 +948,22 @@
                 </div>
                 <div class="card primary">
                     <h4>🔄 Quick Status</h4>
-                    <p>Use the Status dropdown (rightmost column) for instant updates without opening form.</p>
+                    <p>Use the row-level status dropdown to move a visit through the six workflow statuses without reopening the full form.</p>
                 </div>
                 <div class="card primary">
                     <h4>📁 Archive</h4>
                     <p>Move discharged patients to Archive tab. Click Restore to bring them back.</p>
                 </div>
+            </div>
+
+            <h3>Selection Mode</h3>
+            <div class="highlight tip">
+                <strong>Selection mode behavior:</strong> When you select one or more rows, a sticky <strong>Selection Mode</strong> bar appears and the app locks to <strong>Census</strong> and <strong>Table View</strong> until you clear the selection.
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>You can keep scrolling the table and keep selecting or unselecting rows.</li>
+                    <li>The batch bar exposes <strong>Print Selected</strong>, <strong>Change Status</strong>, <strong>Archive</strong>, <strong>Delete</strong>, and <strong>Clear Selection</strong>.</li>
+                    <li><strong>Change Status</strong> opens a picker for the new workflow status and then requires a change note before saving.</li>
+                </ul>
             </div>
         </section>
 
@@ -980,15 +1047,15 @@
                     <li><strong>Coordination:</strong> Quick status overview</li>
                 </ul>
 
-                <h4 style="margin-top: 15px;">Procedure Status Flow</h4>
+                <h4 style="margin-top: 15px;">Common Surgical Workflow</h4>
                 <div class="flow">
-                    <span class="flow-step">📋 To-Do</span>
+                    <span class="flow-step">NC New Consult</span>
                     <span class="flow-arrow">→</span>
-                    <span class="flow-step">⚡ In-Progress</span>
+                    <span class="flow-step">SDS / AM Surgical</span>
                     <span class="flow-arrow">→</span>
-                    <span class="flow-step">✅ Completed</span>
+                    <span class="flow-step">PO Post-Op Follow Up</span>
                     <span class="flow-arrow">→</span>
-                    <span class="flow-step">⭐ Post-Op</span>
+                    <span class="flow-step">DC Signed Off</span>
                 </div>
             </div>
 
@@ -1032,7 +1099,8 @@
 
             <h3>8️⃣ Reports Tab - Exportable Summaries</h3>
             <div class="card primary">
-                <p>Generate and download reports (PDF/Excel): Daily Census, Procedure Summary, Provider Workload, Hospital Utilization</p>
+                <p>The current Reports tab is a <strong>PDF workflow</strong>: choose a report type, optionally filter by date and hospital, click <strong>Generate PDF</strong>, review the on-page preview, then <strong>Print</strong> or <strong>Download PDF</strong>.</p>
+                <p style="margin-top: 10px;"><strong>Visible report types:</strong> Daily Rounding, Surgical Procedures, Patient Summary, and Hospital Census.</p>
             </div>
 
             <h3>9️⃣ Audit Tab - Compliance & Access Logs</h3>
@@ -1105,12 +1173,24 @@
                         <span class="shortcut-key">Ctrl+/</span>
                     </div>
                     <div class="shortcut-item">
+                        <span>Adv. Filters</span>
+                        <span class="shortcut-key">Ctrl+Shift+F</span>
+                    </div>
+                    <div class="shortcut-item">
                         <span>Settings</span>
                         <span class="shortcut-key">Ctrl+,</span>
                     </div>
                     <div class="shortcut-item">
                         <span>Show Shortcuts</span>
-                        <span class="shortcut-key">Ctrl+Shift+?</span>
+                        <span class="shortcut-key">Ctrl+?</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Scroll Up / Previous Visible Record</span>
+                        <span class="shortcut-key">↑</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Scroll Down / Next Visible Record</span>
+                        <span class="shortcut-key">↓</span>
                     </div>
                     <div class="shortcut-item">
                         <span>Close Dialogs</span>
@@ -1123,8 +1203,9 @@
             <div class="card success">
                 <ul>
                     <li><strong>On Mobile:</strong> Swipe left/right to navigate tabs</li>
-                    <li><strong>Quick Filters:</strong> Use search + filter buttons together for powerful results</li>
-                    <li><strong>Batch Operations:</strong> Select multiple patients, then bulk-update status/archive</li>
+                    <li><strong>Search + Adv. Filters:</strong> Use both together when quick filter buttons are not enough.</li>
+                    <li><strong>Batch Operations:</strong> Selection mode keeps you in Census and Table View until you clear the active selection.</li>
+                    <li><strong>Help Modal:</strong> The Help button opens a scrollable shortcuts list with visible scroll hints on smaller screens.</li>
                     <li><strong>Copy Previous:</strong> New date? Use "Copy from Previous Visit" to auto-fill</li>
                     <li><strong>Offline Mode:</strong> App still works! Changes sync when you reconnect.</li>
                 </ul>
@@ -1177,12 +1258,15 @@
                 <strong>📂 Bulk Import Tip:</strong> Hold Ctrl/Cmd to select multiple files at once. Process 3 years of data in seconds!
             </div>
 
-            <h3>Export to Excel/OneDrive</h3>
+            <h3>PDF Reports Export</h3>
             <div class="card success">
-                <h4>One-Click Export</h4>
-                <p>Click <strong>Export to OneDrive</strong>. File uploads as:</p>
-                <code style="background: var(--light); padding: 10px; border-radius: 5px; display: block; margin-top: 10px;">Rounding List YYYY-MM-DD.xlsx</code>
-                <p style="margin-top: 10px;">Also creates <code>Rounding List - Latest.xlsx</code> pointer for easy access.</p>
+                <h4>Current Visible Report Flow</h4>
+                <p>Open the <strong>Reports</strong> tab, select a report type, date, and hospital if needed, then click <strong>Generate PDF</strong>.</p>
+                <p style="margin-top: 10px;">A preview appears inside the page with two actions:</p>
+                <ul style="margin: 10px 0 0 20px;">
+                    <li><strong>Print</strong> for a browser print dialog</li>
+                    <li><strong>Download PDF</strong> for a saved report file</li>
+                </ul>
             </div>
         </section>
 
@@ -1198,6 +1282,16 @@
                     </div>
                     <div class="accordion-content">
                         <p>Yes! The app is fully mobile-responsive and works on iOS and Android. Mobile-first design means it works great on phones and tablets. Your organizational login is required for security.</p>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <div class="accordion-title">
+                        <span>Why can't I switch tabs or views while rows are selected?</span>
+                        <span class="accordion-icon">▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <p>That is expected. When one or more rows are selected, the app enters <strong>Selection Mode</strong> and locks you to <strong>Census</strong> and <strong>Table View</strong> so batch actions stay predictable. Clear the selection to move to other tabs or switch to Card View or By Hospital.</p>
                     </div>
                 </div>
 
